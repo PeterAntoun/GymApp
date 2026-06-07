@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f1115" />
+  <title>Gym Journal</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon-192.png" />
+
+  <!-- iOS add-to-home-screen -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Gym Journal" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Header / date navigation -->
+    <header class="topbar">
+      <div class="date-nav">
+        <button class="icon-btn" id="prevDay" aria-label="Previous day">‹</button>
+        <button class="date-display" id="dateDisplay">
+          <span class="date-main" id="dateMain">Today</span>
+          <span class="date-sub" id="dateSub"></span>
+        </button>
+        <button class="icon-btn" id="nextDay" aria-label="Next day">›</button>
+      </div>
+      <input type="date" id="datePicker" class="hidden-date" />
+      <button class="today-btn" id="todayBtn">Today</button>
+    </header>
+
+    <main id="content">
+      <!-- Body weight card -->
+      <section class="card bodyweight-card">
+        <div class="bw-row">
+          <label for="bodyWeight">Body weight</label>
+          <div class="bw-input-wrap">
+            <input type="number" inputmode="decimal" step="0.1" id="bodyWeight" placeholder="—" />
+            <span class="unit">kg</span>
+          </div>
+        </div>
+        <p class="bw-hint" id="bwHint"></p>
+      </section>
+
+      <!-- Exercises -->
+      <section class="exercises-section">
+        <div class="section-head">
+          <h2>Exercises</h2>
+          <span class="muted" id="exerciseCount"></span>
+        </div>
+        <div id="exerciseList"></div>
+        <div id="emptyState" class="empty-state">
+          <p>No exercises logged for this day.</p>
+          <p class="muted">Tap <strong>+ Add exercise</strong> to start.</p>
+        </div>
+      </section>
+    </main>
+
+    <!-- Floating add button -->
+    <button class="fab" id="addExerciseBtn">+ Add exercise</button>
+
+    <!-- Footer menu -->
+    <nav class="bottombar">
+      <button id="copyPrevBtn" class="bottom-btn">⧉ Copy last session</button>
+      <button id="menuBtn" class="bottom-btn">⋯ Data</button>
+    </nav>
+  </div>
+
+  <!-- Exercise editor sheet -->
+  <div class="sheet-backdrop" id="sheetBackdrop" hidden>
+    <div class="sheet" id="exerciseSheet" role="dialog" aria-modal="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <button class="sheet-cancel" id="sheetCancel">Cancel</button>
+        <h3 id="sheetTitle">Add exercise</h3>
+        <button class="sheet-save" id="sheetSave">Save</button>
+      </div>
+
+      <div class="sheet-body">
+        <label class="field">
+          <span>Exercise</span>
+          <input type="text" id="fExercise" list="exerciseOptions" autocomplete="off"
+                 placeholder="e.g. Pushups" />
+          <datalist id="exerciseOptions"></datalist>
+        </label>
+
+        <label class="field">
+          <span>Variation</span>
+          <input type="text" id="fVariation" list="variationOptions" autocomplete="off"
+                 placeholder="e.g. Standard, Knee, Australian" />
+          <datalist id="variationOptions"></datalist>
+        </label>
+
+        <div class="chip-row" id="variationChips"></div>
+
+        <div class="field-row">
+          <label class="field half">
+            <span>Time under tension</span>
+            <div class="suffix-input">
+              <input type="number" inputmode="numeric" id="fTut" placeholder="—" min="0" />
+              <span class="suffix">sec/rep</span>
+            </div>
+          </label>
+          <label class="field half">
+            <span>Added weight</span>
+            <div class="suffix-input">
+              <input type="number" inputmode="decimal" step="0.5" id="fWeight" placeholder="—" min="0" />
+              <span class="suffix">kg</span>
+            </div>
+          </label>
+        </div>
+
+        <div class="sets-block">
+          <div class="sets-head">
+            <span>Sets &amp; reps</span>
+            <span class="muted" id="setsSummary"></span>
+          </div>
+          <div id="setsList"></div>
+          <button class="add-set-btn" id="addSetBtn">+ Add set</button>
+        </div>
+
+        <button class="delete-btn" id="deleteExerciseBtn" hidden>Delete exercise</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data menu sheet -->
+  <div class="sheet-backdrop" id="menuBackdrop" hidden>
+    <div class="sheet small" id="menuSheet" role="dialog" aria-modal="true">
+      <div class="sheet-handle"></div>
+      <h3 class="menu-title">Data &amp; backup</h3>
+      <button class="menu-item" id="exportBtn">⬇︎ Export backup (.json)</button>
+      <button class="menu-item" id="importBtn">⬆︎ Import backup</button>
+      <input type="file" id="importFile" accept="application/json" hidden />
+      <button class="menu-item danger" id="clearDayBtn">🗑 Clear this day</button>
+      <button class="menu-item" id="menuClose">Close</button>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
