@@ -1,6 +1,6 @@
 /* Service worker — caches the app shell so the journal works offline
    and launches instantly from the home screen. Bump CACHE on changes. */
-const CACHE = "gymjournal-v3";
+const CACHE = "gymjournal-v4";
 const ASSETS = [
   "./",
   "./index.html",
