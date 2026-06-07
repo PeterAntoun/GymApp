@@ -11,9 +11,12 @@ const DEFAULT_EXERCISES = [
   "Pushups", "Pullups", "Dips", "Squats", "Lunges",
   "Rows", "Plank", "Pike pushups", "Chin-ups"
 ];
+/* Variation = the movement variation only. Tension (TuT) and added load
+   (e.g. weighted vest) are kept in their own dedicated fields, so they
+   intentionally do NOT appear here. */
 const DEFAULT_VARIATIONS = [
-  "Standard", "TuT", "No TuT", "Knee", "Incline",
-  "Weighted Vest", "Half reps", "Australian", "Negative", "Wide", "Diamond"
+  "Standard", "Knee", "Incline", "Decline", "Half reps",
+  "Australian", "Negative", "Wide", "Diamond", "Archer"
 ];
 
 /* ---------- State ---------- */
