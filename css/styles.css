@@ -237,6 +237,9 @@ button { cursor: pointer; border: none; background: none; }
   justify-content: center;
   animation: fade 0.2s ease;
 }
+/* The `hidden` attribute must win over the display:flex above,
+   otherwise both sheets render on load and block all taps. */
+.sheet-backdrop[hidden] { display: none; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
 .sheet {
