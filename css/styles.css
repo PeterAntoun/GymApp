@@ -388,3 +388,116 @@ button { cursor: pointer; border: none; background: none; }
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
   animation: fade 0.2s ease;
 }
+
+/* ============================================================
+   Nested sets / steps editor (mechanical drop sets)
+   ============================================================ */
+.hint-line { margin: 0 0 4px; font-size: 0.78rem; color: var(--muted); line-height: 1.4; }
+
+.set-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.set-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.set-card-title { font-weight: 700; font-size: 0.95rem; }
+.set-card-remove { color: var(--danger); font-size: 0.82rem; font-weight: 600; padding: 4px; }
+
+.step {
+  background: var(--card-2);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.step-head { display: flex; align-items: center; gap: 8px; }
+.step-badge {
+  width: 22px; height: 22px; flex: none;
+  background: var(--accent-dim); color: var(--accent);
+  border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  font-size: 0.72rem; font-weight: 700;
+}
+.step-var { flex: 1; background: var(--bg-elevated); border: 1px solid var(--line);
+  border-radius: 10px; padding: 10px 12px; font-size: 0.98rem; font-weight: 600; }
+.step-var:focus { outline: none; border-color: var(--accent); }
+.step-del { color: var(--danger); font-size: 1.2rem; padding: 4px; flex: none; }
+
+.step-grid { display: flex; gap: 8px; }
+.mini { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.mini > span { font-size: 0.68rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.reps-control { display: flex; align-items: center; gap: 6px; }
+.reps-control input,
+.mini-num {
+  width: 100%; background: var(--bg-elevated); border: 1px solid var(--line);
+  border-radius: 10px; padding: 9px; font-size: 0.98rem; font-weight: 600; text-align: center;
+}
+.reps-control input:focus, .mini-num:focus { outline: none; border-color: var(--accent); }
+.mini-step {
+  width: 36px; height: 38px; flex: none; background: var(--bg-elevated);
+  border: 1px solid var(--line); border-radius: 10px; font-size: 1.2rem; color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+.mini-step:active { background: var(--card); }
+
+.add-step-btn {
+  width: 100%; background: transparent; border: 1px dashed var(--line);
+  color: var(--accent); border-radius: 10px; padding: 9px; font-weight: 600; font-size: 0.85rem;
+}
+.add-step-btn:active { background: var(--card-2); }
+
+/* Read-view: sets & steps on the exercise card */
+.set-line { display: flex; gap: 8px; align-items: flex-start; padding: 2px 0; }
+.set-line-label { flex: none; color: var(--muted); font-size: 0.72rem; font-weight: 700;
+  min-width: 42px; padding-top: 8px; }
+.set-steps { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; }
+.step-pill {
+  background: var(--card-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 5px 9px; text-align: center; min-width: 44px;
+}
+.step-pill .sp-reps { font-weight: 700; font-size: 1rem; }
+.step-pill .sp-var { color: var(--accent); font-size: 0.68rem; font-weight: 600; }
+.step-pill .sp-mods { color: var(--muted); font-size: 0.62rem; font-weight: 600; }
+
+/* ============================================================
+   Dashboard
+   ============================================================ */
+.screen {
+  position: fixed; inset: 0; z-index: 60;
+  background: var(--bg); overflow-y: auto;
+  max-width: 640px; margin: 0 auto;
+  animation: slidein 0.22s ease;
+}
+@keyframes slidein { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.screen .topbar { justify-content: space-between; }
+
+.dash-body { padding: 14px; display: flex; flex-direction: column; gap: 16px;
+  padding-bottom: calc(30px + var(--safe-bottom)); }
+.dash-card { padding: 16px; }
+.dash-card-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.dash-card-head h4 { margin: 0; font-size: 1.05rem; }
+
+.dash-controls { display: flex; gap: 10px; margin-bottom: 12px; }
+.mini-field { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+.mini-field > span { font-size: 0.72rem; color: var(--muted); font-weight: 600; }
+.mini-field select {
+  background: var(--card-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: 10px; padding: 11px; font-size: 0.92rem; font-weight: 600;
+  appearance: none; -webkit-appearance: none;
+}
+
+.metric-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.metric-btn {
+  background: var(--card-2); border: 1px solid var(--line); color: var(--muted);
+  border-radius: 999px; padding: 7px 12px; font-size: 0.78rem; font-weight: 600;
+}
+.metric-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent); }
+
+.chart { width: 100%; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 30px 10px; }

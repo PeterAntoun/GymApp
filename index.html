@@ -66,7 +66,8 @@
 
     <!-- Footer menu -->
     <nav class="bottombar">
-      <button id="copyPrevBtn" class="bottom-btn">⧉ Copy last session</button>
+      <button id="copyPrevBtn" class="bottom-btn">⧉ Copy last</button>
+      <button id="dashBtn" class="bottom-btn">📈 Trends</button>
       <button id="menuBtn" class="bottom-btn">⋯ Data</button>
     </nav>
   </div>
@@ -89,37 +90,16 @@
           <datalist id="exerciseOptions"></datalist>
         </label>
 
-        <label class="field">
-          <span>Variation</span>
-          <input type="text" id="fVariation" list="variationOptions" autocomplete="off"
-                 placeholder="e.g. Standard, Knee, Australian" />
-          <datalist id="variationOptions"></datalist>
-        </label>
-
-        <div class="chip-row" id="variationChips"></div>
-
-        <div class="field-row">
-          <label class="field half">
-            <span>Time under tension</span>
-            <div class="suffix-input">
-              <input type="number" inputmode="numeric" id="fTut" placeholder="—" min="0" />
-              <span class="suffix">sec/rep</span>
-            </div>
-          </label>
-          <label class="field half">
-            <span>Added weight</span>
-            <div class="suffix-input">
-              <input type="number" inputmode="decimal" step="0.5" id="fWeight" placeholder="—" min="0" />
-              <span class="suffix">kg</span>
-            </div>
-          </label>
-        </div>
+        <!-- Shared variation suggestions, used by each step -->
+        <datalist id="variationOptions"></datalist>
 
         <div class="sets-block">
           <div class="sets-head">
-            <span>Sets &amp; reps</span>
+            <span>Sets</span>
             <span class="muted" id="setsSummary"></span>
           </div>
+          <p class="hint-line">Each set can chain several variations done back-to-back
+            (e.g. vested → unvested → knee). Add a step for each.</p>
           <div id="setsList"></div>
           <button class="add-set-btn" id="addSetBtn">+ Add set</button>
         </div>
@@ -139,6 +119,45 @@
       <input type="file" id="importFile" accept="application/json" hidden />
       <button class="menu-item danger" id="clearDayBtn">🗑 Clear this day</button>
       <button class="menu-item" id="menuClose">Close</button>
+    </div>
+  </div>
+
+  <!-- Dashboard / trends -->
+  <div class="screen" id="dashScreen" hidden>
+    <header class="topbar">
+      <button class="sheet-cancel" id="dashClose">‹ Back</button>
+      <h3 style="margin:0;font-size:1.05rem;">Trends</h3>
+      <span style="width:48px"></span>
+    </header>
+    <div class="dash-body">
+      <!-- Body weight -->
+      <section class="card dash-card">
+        <div class="dash-card-head">
+          <h4>Body weight</h4>
+          <span class="muted" id="bwStat"></span>
+        </div>
+        <div id="bwChart" class="chart"></div>
+      </section>
+
+      <!-- Exercise progress -->
+      <section class="card dash-card">
+        <div class="dash-card-head">
+          <h4>Exercise progress</h4>
+        </div>
+        <div class="dash-controls">
+          <label class="mini-field">
+            <span>Exercise</span>
+            <select id="dashExercise"></select>
+          </label>
+          <label class="mini-field">
+            <span>Variation</span>
+            <select id="dashVariation"></select>
+          </label>
+        </div>
+        <div class="metric-row" id="dashMetrics"></div>
+        <div id="exChart" class="chart"></div>
+        <p class="hint-line" id="dashHint"></p>
+      </section>
     </div>
   </div>
 

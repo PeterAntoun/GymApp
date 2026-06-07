@@ -11,28 +11,39 @@ Built as a plain web app (HTML/CSS/JS), so there's no build step.
 Everything is organised **by date**:
 
 - **Body weight** for the day (shows the change since your last recorded weigh-in).
-- **Exercises**, with the granularity you actually train at:
+- **Exercises → Sets → Steps**, matching how you actually train:
   - **Exercise** — Pushups, Pullups, Dips, … (free text, learns what you type).
-  - **Variation** — Standard, TuT, No TuT, Knee, Weighted Vest, Half reps,
-    Australian, Negative, … (quick-pick chips + free text).
-  - **Time under tension (TuT)** in seconds per rep — optional.
-  - **Added weight** in kg (e.g. a 4 kg weighted vest) — optional.
-  - **Sets & reps** — add as many sets as you want; new sets pre-fill with the
-    previous set's reps and have +/- steppers for fast logging.
+  - **Set** — one round, with rest after it.
+  - **Step** — within a set you can chain several variations back-to-back (a
+    mechanical drop set / "running the rack"). Each step has its own:
+    - **Variation** — Standard, Knee, Incline, Australian, Negative, … (movement only)
+    - **Reps** — with +/- steppers
+    - **Time under tension (TuT)** in seconds — optional, its own field
+    - **Added weight** in kg (e.g. a 4 kg weighted vest) — optional, its own field
 
-So a typical chest day might be a few entries like:
+These three (variation, TuT, added weight) are **independent fields**, never
+forced into one dropdown.
 
-| Exercise | Variation | TuT | Weight | Sets |
-|----------|-----------|-----|--------|------|
-| Pushups  | TuT       | 3s  | —      | 12, 10, 8 |
-| Pushups  | No TuT    | —   | —      | 20, 18 |
-| Pushups  | Knee      | —   | —      | 15 |
-| Pullups  | Weighted Vest | — | 4 kg | 6, 5, 4 |
-| Pullups  | Half reps | —   | —      | 8 |
-| Pullups  | Australian | —  | —      | 12, 12 |
+Example — one Pushups *set* run as a drop set:
 
-Tap any entry to edit it. Use **Copy last session** to clone your previous
-workout into today and just tweak the numbers.
+> Set 1: **10** vested (+4 kg) → **8** unvested → **6** knee
+
+…and a Pullups set:
+
+> Set 1: **6** standard → **4** negative → **8** half-rep → **12** Australian
+
+Add a step for each variation, add a set for each round. New steps/sets pre-fill
+from the previous one, so repeating a sequence is just tweaking numbers. Tap any
+entry to edit it, or use **Copy last** to clone your previous workout.
+
+## Trends dashboard
+
+Bottom bar → **📈 Trends**:
+- **Body weight** over time (line chart with overall change).
+- **Exercise progress** — pick an exercise and (optionally) a single variation,
+  then chart **Total reps**, **Best set reps**, **Max +kg**, or **Avg TuT** across
+  your sessions. So you can watch, say, weighted-vest pull-up load creep up, or
+  reps on a specific variation climb over the weeks.
 
 ## Run it
 
