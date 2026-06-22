@@ -178,12 +178,12 @@
             talk to GitHub.
           </p>
           <ol class="help-list">
-            <li>Open <strong>github.com/settings/tokens</strong> → <em>Fine-grained tokens</em> → Generate new.</li>
-            <li>Under <em>Account permissions</em>, set <strong>Gists: Read and write</strong>.</li>
-            <li>(Classic tokens also work — just tick the <strong>gist</strong> scope.)</li>
-            <li>Generate, copy it, and paste above.</li>
-            <li>On your other device, paste the <em>same</em> token — it finds the same Gist automatically.</li>
-            <li>Tip: fine-grained tokens can expire. If sync ever says <em>“Token expired”</em>, just generate a new one and reconnect here. For a token that never expires, use a classic token with no expiry.</li>
+            <li>Open <strong>github.com/settings/tokens</strong>.</li>
+            <li><strong>Recommended:</strong> <em>Tokens (classic)</em> → <em>Generate new token (classic)</em> → tick the <strong>gist</strong> checkbox → Generate.</li>
+            <li>Fine-grained tokens often <em>can't</em> access Gists (you'll see “access denied”). If you must use one, set <strong>Account permissions → Gists: Read and write</strong> — but classic is more reliable.</li>
+            <li>Copy the token and paste it above, then tap <strong>Connect &amp; sync</strong>.</li>
+            <li>On your other device, paste the <em>same</em> token — it links to the same Gist automatically.</li>
+            <li>If it ever says <em>Token expired</em>, generate a new one and reconnect. For a token that never expires, use a classic token with no expiry.</li>
           </ol>
           <button class="primary-btn" id="syncConnect">Connect &amp; sync</button>
         </div>

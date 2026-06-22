@@ -804,11 +804,13 @@ async function gh(path, opts = {}) {
     headers: { ...ghHeaders(), ...(opts.headers || {}) }
   });
   if (!res.ok) {
-    const err = new Error(
+    let detail = "";
+    try { const j = await res.json(); if (j && j.message) detail = j.message; } catch (e) {}
+    const base =
       res.status === 401 ? "Token expired or invalid" :
-      res.status === 403 ? "Access denied — check the Gists permission" :
-      `GitHub error ${res.status}`
-    );
+      res.status === 403 ? "This token can't access Gists — use a classic token with the 'gist' scope" :
+      `GitHub error ${res.status}`;
+    const err = new Error(detail ? `${base} (${detail})` : base);
     if (res.status === 401) err.auth = true;   // token expired / revoked
     throw err;
   }
