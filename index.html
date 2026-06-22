@@ -190,6 +190,14 @@
 
         <div id="syncManage" hidden>
           <button class="primary-btn" id="syncNowBtn">Sync now</button>
+          <div class="sync-actions">
+            <button class="sub-btn" id="syncPull">⬇︎ Pull from cloud (replace this device)</button>
+            <button class="sub-btn" id="syncPush">⬆︎ Push this device to cloud (overwrite)</button>
+          </div>
+          <p class="hint-line" id="syncGistInfo"></p>
+          <p class="hint-line">If a device is out of sync, open this on both, confirm the
+            <em>Linked gist</em> id matches, then use <strong>Pull</strong> on the device that's
+            behind (or <strong>Push</strong> from the device with the correct data).</p>
           <button class="delete-btn" id="syncDisconnect">Disconnect this device</button>
         </div>
       </div>

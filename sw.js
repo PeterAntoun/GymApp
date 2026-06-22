@@ -1,6 +1,6 @@
-/* Service worker — caches the app shell so the journal works offline
-   and launches instantly from the home screen. Bump CACHE on changes. */
-const CACHE = "gymjournal-v7";
+/* Service worker — network-first for the app shell so every launch gets the
+   latest code when online, with an offline cache fallback. Bump CACHE on changes. */
+const CACHE = "gymjournal-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -28,19 +28,21 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  // Never intercept cross-origin requests (e.g. the GitHub sync API).
+  if (url.origin !== location.origin) return;
+
+  // Network-first: always try the network so updates land immediately;
+  // fall back to cache when offline.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request)
-        .then((resp) => {
-          // Cache same-origin requests as we go.
-          if (resp.ok && new URL(event.request.url).origin === location.origin) {
-            const clone = resp.clone();
-            caches.open(CACHE).then((c) => c.put(event.request, clone));
-          }
-          return resp;
-        })
-        .catch(() => caches.match("./index.html"));
-    })
+    fetch(event.request)
+      .then((resp) => {
+        if (resp.ok) {
+          const clone = resp.clone();
+          caches.open(CACHE).then((c) => c.put(event.request, clone));
+        }
+        return resp;
+      })
+      .catch(() => caches.match(event.request).then((c) => c || caches.match("./index.html")))
   );
 });
