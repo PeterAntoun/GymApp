@@ -8,9 +8,9 @@ import os
 import struct
 import zlib
 
-BG = (15, 17, 21)        # app background
-TILE = (29, 33, 41)      # rounded tile
-ACCENT = (79, 140, 255)  # dumbbell blue
+BG = (10, 12, 16)        # app background
+TILE = (20, 23, 31)      # rounded tile
+ACCENT = (108, 124, 246) # dumbbell (blue/violet blend)
 
 
 def rounded_rect_mask(size, inset, radius):
