@@ -1,13 +1,13 @@
 {
   "name": "Gym Journal",
   "short_name": "Gym Journal",
-  "description": "A simple by-the-date training journal: body weight and exercises with TuT, reps and sets.",
+  "description": "A by-the-date training journal: body weight, drop-set steps with TuT and added load, PRs, trends and a rest timer.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f1115",
-  "theme_color": "#0f1115",
+  "background_color": "#0a0c10",
+  "theme_color": "#0a0c10",
   "icons": [
     {
       "src": "icons/icon-192.png",

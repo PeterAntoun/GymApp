@@ -36,14 +36,42 @@ Add a step for each variation, add a set for each round. New steps/sets pre-fill
 from the previous one, so repeating a sequence is just tweaking numbers. Tap any
 entry to edit it, or use **Copy last** to clone your previous workout.
 
+## At-a-glance stats & PRs
+
+Each day shows a quick stat strip — **reps**, **sets**, **exercises**, and your
+current **🔥 streak**. When a set beats your previous best (more reps, or more
+added weight) for that exercise+variation, it's flagged with a **🏆 PR badge**.
+
 ## Trends dashboard
 
 Bottom bar → **📈 Trends**:
 - **Body weight** over time (line chart with overall change).
 - **Exercise progress** — pick an exercise and (optionally) a single variation,
-  then chart **Total reps**, **Best set reps**, **Max +kg**, or **Avg TuT** across
+  then chart **Total reps**, **Best set**, **Max +kg**, or **Avg TuT** across
   your sessions. So you can watch, say, weighted-vest pull-up load creep up, or
   reps on a specific variation climb over the weeks.
+- **Personal bests** — best reps and top load per exercise.
+
+## Rest timer
+
+Bottom bar → **⏱ Timer**: presets (0:30–3:00), ±15s, start/pause, and a beep +
+vibrate when rest is up. A floating pill keeps the countdown visible while you
+log your next set.
+
+## Cloud sync (phone ↔ PC)
+
+Your journal is local-first, but you can sync across devices via a **private
+GitHub Gist** — no server, no account beyond GitHub:
+
+1. Bottom bar → **Data → ☁︎ Cloud sync**.
+2. Create a GitHub token (github.com/settings/tokens → fine-grained →
+   **Gists: Read and write**, or a classic token with the **gist** scope).
+3. Paste it and tap **Connect & sync**.
+4. On your other device, paste the **same token** — it finds the same Gist
+   automatically and merges per-day (newest edit wins), so phone and PC stay in
+   sync without clobbering each other.
+
+The token is stored only on each device (in its browser), never in this repo.
 
 ## Run it
 
@@ -73,11 +101,11 @@ python3 -m http.server 8000
 
 Bottom bar → **Data**:
 - **Export backup** downloads a `.json` of everything.
-- **Import backup** restores from that file (replaces current data).
+- **Import backup** merges a backup file into your data.
 - **Clear this day** wipes just the current date.
 
-Keep an occasional export somewhere safe — local storage lives only on that
-device/browser.
+If you're not using cloud sync, keep an occasional export somewhere safe — local
+storage lives only on that device/browser.
 
 ## Project layout
 

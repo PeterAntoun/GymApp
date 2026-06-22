@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
-  <meta name="theme-color" content="#0f1115" />
+  <meta name="theme-color" content="#0a0c10" />
   <title>Gym Journal</title>
 
   <!-- PWA -->
@@ -20,57 +20,73 @@
 </head>
 <body>
   <div id="app">
-    <!-- Header / date navigation -->
+    <!-- Top bar: brand + sync status -->
     <header class="topbar">
-      <div class="date-nav">
-        <button class="icon-btn" id="prevDay" aria-label="Previous day">‹</button>
-        <button class="date-display" id="dateDisplay">
-          <span class="date-main" id="dateMain">Today</span>
-          <span class="date-sub" id="dateSub"></span>
-        </button>
-        <button class="icon-btn" id="nextDay" aria-label="Next day">›</button>
+      <div class="brand">
+        <span class="brand-mark">▟</span>
+        <span class="brand-name">Journal</span>
       </div>
-      <input type="date" id="datePicker" class="hidden-date" />
-      <button class="today-btn" id="todayBtn">Today</button>
+      <button class="sync-chip" id="syncChip" hidden></button>
     </header>
 
+    <!-- Date navigation -->
+    <div class="datebar">
+      <button class="icon-btn" id="prevDay" aria-label="Previous day">‹</button>
+      <button class="date-display" id="dateDisplay">
+        <span class="date-main" id="dateMain">Today</span>
+        <span class="date-sub" id="dateSub"></span>
+      </button>
+      <button class="icon-btn" id="nextDay" aria-label="Next day">›</button>
+      <input type="date" id="datePicker" class="hidden-date" />
+    </div>
+
     <main id="content">
+      <!-- At-a-glance day stats -->
+      <section class="stat-strip" id="statStrip"></section>
+
       <!-- Body weight card -->
       <section class="card bodyweight-card">
         <div class="bw-row">
-          <label for="bodyWeight">Body weight</label>
+          <div class="bw-label">
+            <span class="bw-title">Body weight</span>
+            <span class="bw-hint" id="bwHint"></span>
+          </div>
           <div class="bw-input-wrap">
             <input type="number" inputmode="decimal" step="0.1" id="bodyWeight" placeholder="—" />
             <span class="unit">kg</span>
           </div>
         </div>
-        <p class="bw-hint" id="bwHint"></p>
       </section>
 
       <!-- Exercises -->
       <section class="exercises-section">
         <div class="section-head">
-          <h2>Exercises</h2>
-          <span class="muted" id="exerciseCount"></span>
+          <h2>Exercises <span class="muted" id="exerciseCount"></span></h2>
+          <button class="ghost-btn" id="copyPrevBtn">⧉ Copy last</button>
         </div>
         <div id="exerciseList"></div>
         <div id="emptyState" class="empty-state">
-          <p>No exercises logged for this day.</p>
-          <p class="muted">Tap <strong>+ Add exercise</strong> to start.</p>
+          <div class="empty-icon">🏋️</div>
+          <p class="empty-title">No exercises yet</p>
+          <p class="muted">Tap <strong>+ Add exercise</strong> to log your first set.</p>
         </div>
       </section>
     </main>
 
     <!-- Floating add button -->
-    <button class="fab" id="addExerciseBtn">+ Add exercise</button>
+    <button class="fab" id="addExerciseBtn"><span class="fab-plus">+</span> Add exercise</button>
 
-    <!-- Footer menu -->
+    <!-- Bottom tab bar -->
     <nav class="bottombar">
-      <button id="copyPrevBtn" class="bottom-btn">⧉ Copy last</button>
-      <button id="dashBtn" class="bottom-btn">📈 Trends</button>
-      <button id="menuBtn" class="bottom-btn">⋯ Data</button>
+      <button class="tab" id="tabToday"><i>◧</i><span>Today</span></button>
+      <button class="tab" id="dashBtn"><i>📈</i><span>Trends</span></button>
+      <button class="tab" id="timerBtn"><i>⏱</i><span>Timer</span></button>
+      <button class="tab" id="menuBtn"><i>⋯</i><span>Data</span></button>
     </nav>
   </div>
+
+  <!-- Floating rest-timer pill -->
+  <button class="timer-pill" id="timerPill" hidden></button>
 
   <!-- Exercise editor sheet -->
   <div class="sheet-backdrop" id="sheetBackdrop" hidden>
@@ -113,7 +129,11 @@
   <div class="sheet-backdrop" id="menuBackdrop" hidden>
     <div class="sheet small" id="menuSheet" role="dialog" aria-modal="true">
       <div class="sheet-handle"></div>
-      <h3 class="menu-title">Data &amp; backup</h3>
+      <h3 class="menu-title">Data &amp; sync</h3>
+      <button class="menu-item sync-item" id="syncMenuBtn">
+        <span>☁︎ Cloud sync</span>
+        <span class="menu-sub" id="syncStatusLine">Not connected</span>
+      </button>
       <button class="menu-item" id="exportBtn">⬇︎ Export backup (.json)</button>
       <button class="menu-item" id="importBtn">⬆︎ Import backup</button>
       <input type="file" id="importFile" accept="application/json" hidden />
@@ -122,15 +142,75 @@
     </div>
   </div>
 
+  <!-- Cloud sync sheet -->
+  <div class="sheet-backdrop" id="syncBackdrop" hidden>
+    <div class="sheet" id="syncSheet" role="dialog" aria-modal="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <button class="sheet-cancel" id="syncClose">Close</button>
+        <h3>Cloud sync</h3>
+        <span style="width:48px"></span>
+      </div>
+      <div class="sheet-body">
+        <div class="sync-state" id="syncState"></div>
+
+        <div id="syncConnectForm">
+          <label class="field">
+            <span>GitHub personal access token</span>
+            <input type="password" id="syncToken" autocomplete="off" placeholder="ghp_… or github_pat_…" />
+          </label>
+          <p class="hint-line">
+            Your journal is saved to a <strong>private GitHub Gist</strong> so it syncs across
+            your devices. The token is stored only on this device and never leaves it except to
+            talk to GitHub.
+          </p>
+          <ol class="help-list">
+            <li>Open <strong>github.com/settings/tokens</strong> → <em>Fine-grained tokens</em> → Generate new.</li>
+            <li>Under <em>Account permissions</em>, set <strong>Gists: Read and write</strong>.</li>
+            <li>(Classic tokens also work — just tick the <strong>gist</strong> scope.)</li>
+            <li>Generate, copy it, and paste above.</li>
+            <li>On your other device, paste the <em>same</em> token — it finds the same Gist automatically.</li>
+          </ol>
+          <button class="primary-btn" id="syncConnect">Connect &amp; sync</button>
+        </div>
+
+        <div id="syncManage" hidden>
+          <button class="primary-btn" id="syncNowBtn">Sync now</button>
+          <button class="delete-btn" id="syncDisconnect">Disconnect this device</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rest timer sheet -->
+  <div class="sheet-backdrop" id="timerBackdrop" hidden>
+    <div class="sheet" id="timerSheet" role="dialog" aria-modal="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <button class="sheet-cancel" id="timerClose">Close</button>
+        <h3>Rest timer</h3>
+        <span style="width:48px"></span>
+      </div>
+      <div class="sheet-body timer-body">
+        <div class="timer-display" id="timerDisplay">0:00</div>
+        <div class="timer-presets" id="timerPresets"></div>
+        <div class="timer-controls">
+          <button class="timer-ctrl" id="timerMinus">−15s</button>
+          <button class="primary-btn timer-main" id="timerStart">Start</button>
+          <button class="timer-ctrl" id="timerReset">Reset</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Dashboard / trends -->
   <div class="screen" id="dashScreen" hidden>
-    <header class="topbar">
+    <header class="topbar dash-topbar">
       <button class="sheet-cancel" id="dashClose">‹ Back</button>
-      <h3 style="margin:0;font-size:1.05rem;">Trends</h3>
-      <span style="width:48px"></span>
+      <h3 class="screen-title">Trends</h3>
+      <span style="width:54px"></span>
     </header>
     <div class="dash-body">
-      <!-- Body weight -->
       <section class="card dash-card">
         <div class="dash-card-head">
           <h4>Body weight</h4>
@@ -139,11 +219,8 @@
         <div id="bwChart" class="chart"></div>
       </section>
 
-      <!-- Exercise progress -->
       <section class="card dash-card">
-        <div class="dash-card-head">
-          <h4>Exercise progress</h4>
-        </div>
+        <div class="dash-card-head"><h4>Exercise progress</h4></div>
         <div class="dash-controls">
           <label class="mini-field">
             <span>Exercise</span>
@@ -157,6 +234,11 @@
         <div class="metric-row" id="dashMetrics"></div>
         <div id="exChart" class="chart"></div>
         <p class="hint-line" id="dashHint"></p>
+      </section>
+
+      <section class="card dash-card">
+        <div class="dash-card-head"><h4>🏆 Personal bests</h4></div>
+        <div id="pbList"></div>
       </section>
     </div>
   </div>
