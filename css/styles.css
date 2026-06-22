@@ -492,3 +492,13 @@ button { cursor: pointer; border: none; background: none; }
   font-size: 0.85rem; color: var(--text); line-height: 1.4;
 }
 .ex-note .ex-note-icon { flex: none; opacity: 0.8; }
+
+/* ---------- Sync recovery actions ---------- */
+.sync-actions { display: flex; flex-direction: column; gap: 10px; }
+.sub-btn {
+  width: 100%; text-align: left;
+  background: var(--card); border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius-sm); padding: 13px; font-weight: 650; font-size: 0.9rem;
+}
+.sub-btn:active { background: var(--card-2); }
+#syncGistInfo { word-break: break-all; }

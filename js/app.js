@@ -798,7 +798,11 @@ function ghHeaders() {
   return { "Authorization": "Bearer " + syncToken, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
 }
 async function gh(path, opts = {}) {
-  const res = await fetch("https://api.github.com" + path, { ...opts, headers: { ...ghHeaders(), ...(opts.headers || {}) } });
+  const res = await fetch("https://api.github.com" + path, {
+    ...opts,
+    cache: "no-store",   // never serve a stale Gist from the browser HTTP cache
+    headers: { ...ghHeaders(), ...(opts.headers || {}) }
+  });
   if (!res.ok) {
     const err = new Error(
       res.status === 401 ? "Token expired or invalid" :
@@ -810,10 +814,23 @@ async function gh(path, opts = {}) {
   }
   return res.json();
 }
+/* Read the journal file out of a gist payload, fetching the raw URL if
+   GitHub truncated the inline content. */
+async function readGistContent(data) {
+  const f = data.files && data.files[GIST_FILE];
+  if (!f) return "";
+  if (f.truncated && f.raw_url) {
+    const r = await fetch(f.raw_url, { cache: "no-store" });
+    return r.ok ? r.text() : "";
+  }
+  return f.content || "";
+}
 async function discoverGist() {
   const list = await gh("/gists?per_page=100");
-  const found = list.find(g => (g.files && g.files[GIST_FILE]) || (g.description || "").includes(GIST_TAG));
-  return found ? found.id : null;
+  const matches = list.filter(g => (g.files && g.files[GIST_FILE]) || (g.description || "").includes(GIST_TAG));
+  // If duplicates exist, both devices converge on the most recently updated one.
+  matches.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+  return matches.length ? matches[0].id : null;
 }
 async function ensureGist() {
   if (gistId) return gistId;
@@ -859,17 +876,16 @@ async function syncNow(opts = {}) {
   try {
     await ensureGist();
     const data = await gh("/gists/" + gistId);
+    const content = await readGistContent(data);
     let remote = null;
-    const f = data.files && data.files[GIST_FILE];
-    if (f && f.content) { try { remote = JSON.parse(f.content); normalize(remote); } catch (e) {} }
+    if (content) { try { remote = JSON.parse(content); normalize(remote); } catch (e) {} }
     if (remote) {
       const merged = mergeDB(db, remote);
       db = merged; saveDB(); render();
     }
     // push our (possibly merged) state back
     const localStr = JSON.stringify(db);
-    const remoteStr = f && f.content ? f.content : "";
-    if (localStr !== remoteStr) {
+    if (localStr !== (content || "")) {
       await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: localStr } } }) });
     }
     lastSyncAt = Date.now();
@@ -891,6 +907,43 @@ function scheduleSync() {
   if (!syncEnabled()) return;
   clearTimeout(syncTimer);
   syncTimer = setTimeout(() => syncNow(), 1500);
+}
+/* Force pull: replace this device's data with the cloud copy. */
+async function forcePull() {
+  if (!syncEnabled() || syncing) return;
+  if (!confirm("Replace THIS device's data with the cloud copy?")) return;
+  syncing = true; setSyncStatus("busy", "Pulling…");
+  try {
+    await ensureGist();
+    const content = await readGistContent(await gh("/gists/" + gistId));
+    if (!content) throw new Error("Cloud copy is empty");
+    const remote = JSON.parse(content); normalize(remote);
+    db = remote; saveDB(); render();
+    lastSyncAt = Date.now(); syncAuthError = false;
+    setSyncStatus("ok", "Pulled " + timeAgo(lastSyncAt));
+    showToast("Pulled cloud data");
+  } catch (e) {
+    if (e.auth) { syncAuthError = true; setSyncStatus("err", "Token expired — reconnect"); }
+    else setSyncStatus("err", e.message || "Pull failed");
+    showToast("Pull failed: " + (e.message || ""));
+  } finally { syncing = false; updateSyncUI(); }
+}
+/* Force push: overwrite the cloud copy with this device's data. */
+async function forcePush() {
+  if (!syncEnabled() || syncing) return;
+  if (!confirm("Overwrite the CLOUD copy with this device's data?")) return;
+  syncing = true; setSyncStatus("busy", "Pushing…");
+  try {
+    await ensureGist();
+    await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: JSON.stringify(db) } } }) });
+    lastSyncAt = Date.now(); syncAuthError = false;
+    setSyncStatus("ok", "Pushed " + timeAgo(lastSyncAt));
+    showToast("Pushed to cloud");
+  } catch (e) {
+    if (e.auth) { syncAuthError = true; setSyncStatus("err", "Token expired — reconnect"); }
+    else setSyncStatus("err", e.message || "Push failed");
+    showToast("Push failed: " + (e.message || ""));
+  } finally { syncing = false; updateSyncUI(); }
 }
 function timeAgo(t) {
   const s = Math.round((Date.now() - t) / 1000);
@@ -935,6 +988,8 @@ function openSyncSheet() {
   $("syncState").textContent = !syncEnabled() ? "Connect to sync across your devices."
     : syncAuthError ? "⚠️ Your GitHub token expired or was revoked. Generate a new one and paste it below to reconnect."
     : (lastSyncAt ? "Synced " + timeAgo(lastSyncAt) : "Connected — tap Sync now");
+  // Show which gist this device is linked to, so both devices can be confirmed to match.
+  $("syncGistInfo").textContent = syncEnabled() && gistId ? "Linked gist: " + gistId : "";
   $("syncBackdrop").hidden = false;
 }
 $("syncConnect").addEventListener("click", async () => {
@@ -949,6 +1004,8 @@ $("syncConnect").addEventListener("click", async () => {
   if (syncEnabled() && !syncing) { showToast("Cloud sync on"); $("syncBackdrop").hidden = true; }
 });
 $("syncNowBtn").addEventListener("click", () => syncNow());
+$("syncPull").addEventListener("click", forcePull);
+$("syncPush").addEventListener("click", forcePush);
 $("syncDisconnect").addEventListener("click", () => {
   if (!confirm("Disconnect sync on this device? Your local data stays.")) return;
   syncToken = ""; gistId = ""; lastSyncAt = 0;
@@ -956,10 +1013,14 @@ $("syncDisconnect").addEventListener("click", () => {
   updateSyncUI(); $("syncBackdrop").hidden = true; showToast("Disconnected");
 });
 
-/* Pull fresh data when returning to the app */
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && syncEnabled()) syncNow();
-});
+/* Pull fresh data whenever the app comes back to the foreground.
+   iOS standalone PWAs don't fire all of these reliably, so we listen to
+   several and also poll periodically. */
+function syncOnResume() { if (syncEnabled() && !syncing && document.visibilityState === "visible") syncNow(); }
+document.addEventListener("visibilitychange", syncOnResume);
+window.addEventListener("focus", syncOnResume);
+window.addEventListener("pageshow", syncOnResume);
+setInterval(syncOnResume, 25000);
 
 /* ============================================================
    Utilities
