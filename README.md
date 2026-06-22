@@ -36,6 +36,15 @@ Add a step for each variation, add a set for each round. New steps/sets pre-fill
 from the previous one, so repeating a sequence is just tweaking numbers. Tap any
 entry to edit it, or use **Copy last** to clone your previous workout.
 
+## Notes
+
+- **Day note** — a free-text box on each day for how things felt
+  ("left shoulder pain", "slept poorly", "felt strong").
+- **Per-exercise note** — in the exercise editor, attach a note to a specific
+  movement ("knee pop on rep 6"); it shows on that exercise's card.
+
+Both sync across devices like the rest of your data.
+
 ## At-a-glance stats & PRs
 
 Each day shows a quick stat strip — **reps**, **sets**, **exercises**, and your
