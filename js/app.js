@@ -399,8 +399,12 @@ function stepRow(set, step, ki) {
   repsCtrl.appendChild(minus); repsCtrl.appendChild(repsInput); repsCtrl.appendChild(plus);
   repsMini.appendChild(repsCtrl);
   grid.appendChild(repsMini);
-  grid.appendChild(miniNum("TuT (s)", step.tut, "numeric", "1", v => { step.tut = v === "" ? null : (parseInt(v) || 0); }));
-  grid.appendChild(miniNum("Added kg", step.weight, "decimal", "0.5", v => { step.weight = v === "" ? null : (parseFloat(v) || 0); }));
+  // TuT and added weight share a second row so reps gets the full width.
+  const sub = document.createElement("div");
+  sub.className = "step-subgrid";
+  sub.appendChild(miniNum("TuT (s)", step.tut, "numeric", "1", v => { step.tut = v === "" ? null : (parseInt(v) || 0); }));
+  sub.appendChild(miniNum("Added kg", step.weight, "decimal", "0.5", v => { step.weight = v === "" ? null : (parseFloat(v) || 0); }));
+  grid.appendChild(sub);
   row.appendChild(grid);
   return row;
 }
