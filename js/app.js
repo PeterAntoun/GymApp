@@ -770,6 +770,7 @@ function beep() {
 let syncToken = localStorage.getItem(SYNC_TOKEN_KEY) || "";
 let gistId = localStorage.getItem(SYNC_GIST_KEY) || "";
 let syncTimer = null, syncing = false, lastSyncAt = 0;
+let syncAuthError = false;   // true when GitHub rejects the token (expired/revoked)
 
 function syncEnabled() { return !!syncToken; }
 function ghHeaders() {
@@ -778,8 +779,13 @@ function ghHeaders() {
 async function gh(path, opts = {}) {
   const res = await fetch("https://api.github.com" + path, { ...opts, headers: { ...ghHeaders(), ...(opts.headers || {}) } });
   if (!res.ok) {
-    const msg = res.status === 401 ? "Bad token" : `GitHub error ${res.status}`;
-    throw new Error(msg);
+    const err = new Error(
+      res.status === 401 ? "Token expired or invalid" :
+      res.status === 403 ? "Access denied — check the Gists permission" :
+      `GitHub error ${res.status}`
+    );
+    if (res.status === 401) err.auth = true;   // token expired / revoked
+    throw err;
   }
   return res.json();
 }
@@ -846,9 +852,16 @@ async function syncNow(opts = {}) {
       await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: localStr } } }) });
     }
     lastSyncAt = Date.now();
+    syncAuthError = false;
     setSyncStatus("ok", "Synced " + timeAgo(lastSyncAt));
   } catch (e) {
-    setSyncStatus("err", e.message || "Sync failed");
+    if (e.auth) {
+      syncAuthError = true;
+      setSyncStatus("err", "Token expired — reconnect");
+      showToast("⚠️ GitHub token expired — reconnect in Data → Cloud sync");
+    } else {
+      setSyncStatus("err", e.message || "Sync failed");
+    }
   } finally {
     syncing = false; updateSyncUI();
   }
@@ -875,14 +888,19 @@ function setSyncStatus(kind, text) {
   if (st) st.textContent = text;
 }
 function updateSyncUI() {
-  $("syncStatusLine").textContent = syncEnabled()
-    ? (lastSyncAt ? "Connected · synced " + timeAgo(lastSyncAt) : "Connected")
-    : "Not connected";
-  $("syncConnectForm").hidden = syncEnabled();
-  $("syncManage").hidden = !syncEnabled();
+  const needReconnect = syncEnabled() && syncAuthError;
+  $("syncStatusLine").textContent = !syncEnabled() ? "Not connected"
+    : needReconnect ? "⚠️ Token expired — reconnect"
+    : (lastSyncAt ? "Connected · synced " + timeAgo(lastSyncAt) : "Connected");
+  // When the token is rejected, surface the connect form so a new one can be pasted.
+  $("syncConnectForm").hidden = syncEnabled() && !needReconnect;
+  $("syncManage").hidden = !syncEnabled() || needReconnect;
   if (syncEnabled()) {
     $("syncChip").hidden = false;
-    if (!syncing) setSyncStatus(lastSyncAt ? "ok" : "", lastSyncAt ? "Synced " + timeAgo(lastSyncAt) : "Connected");
+    if (!syncing) {
+      if (needReconnect) setSyncStatus("err", "Reconnect");
+      else setSyncStatus(lastSyncAt ? "ok" : "", lastSyncAt ? "Synced " + timeAgo(lastSyncAt) : "Connected");
+    }
   } else $("syncChip").hidden = true;
 }
 $("syncChip").addEventListener("click", openSyncSheet);
@@ -893,15 +911,15 @@ function openSyncSheet() {
   $("menuBackdrop").hidden = true;
   $("syncToken").value = "";
   updateSyncUI();
-  $("syncState").textContent = syncEnabled()
-    ? (lastSyncAt ? "Synced " + timeAgo(lastSyncAt) : "Connected — tap Sync now")
-    : "Connect to sync across your devices.";
+  $("syncState").textContent = !syncEnabled() ? "Connect to sync across your devices."
+    : syncAuthError ? "⚠️ Your GitHub token expired or was revoked. Generate a new one and paste it below to reconnect."
+    : (lastSyncAt ? "Synced " + timeAgo(lastSyncAt) : "Connected — tap Sync now");
   $("syncBackdrop").hidden = false;
 }
 $("syncConnect").addEventListener("click", async () => {
   const tok = $("syncToken").value.trim();
   if (!tok) { showToast("Paste a token first"); return; }
-  syncToken = tok; gistId = "";
+  syncToken = tok; gistId = ""; syncAuthError = false;
   localStorage.setItem(SYNC_TOKEN_KEY, tok);
   localStorage.removeItem(SYNC_GIST_KEY);
   $("syncConnect").disabled = true; $("syncState").textContent = "Connecting…";
