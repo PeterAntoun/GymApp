@@ -153,7 +153,13 @@ function render() {
   renderHeader();
   renderStatStrip();
   renderBodyWeight();
+  renderDayNote();
   renderExercises();
+}
+
+function renderDayNote() {
+  const day = db.days[currentDate];
+  $("dayNote").value = day && day.note ? day.note : "";
 }
 
 function renderHeader() {
@@ -240,6 +246,13 @@ function exerciseCard(ex) {
     card.appendChild(line);
   });
 
+  if (ex.note) {
+    const note = document.createElement("div");
+    note.className = "ex-note";
+    note.innerHTML = `<span class="ex-note-icon">📝</span><span>${escapeHtml(ex.note)}</span>`;
+    card.appendChild(note);
+  }
+
   const totalEl = document.createElement("div");
   totalEl.className = "ex-total";
   const sc = (ex.sets || []).length;
@@ -257,6 +270,11 @@ $("bodyWeight").addEventListener("change", (e) => {
   const val = e.target.value.trim();
   day.bodyWeight = val === "" ? null : parseFloat(val);
   commit(currentDate); renderBodyWeight();
+});
+$("dayNote").addEventListener("input", (e) => {
+  // Persist + schedule sync as you type (sync itself is debounced).
+  getDay(currentDate).note = e.target.value;
+  commit(currentDate);
 });
 $("prevDay").addEventListener("click", () => { currentDate = shiftDate(currentDate, -1); render(); });
 $("nextDay").addEventListener("click", () => { currentDate = shiftDate(currentDate, 1); render(); });
@@ -288,11 +306,13 @@ function openEditor(id) {
     $("sheetTitle").textContent = "Edit exercise";
     $("deleteExerciseBtn").hidden = false;
     $("fExercise").value = ex.name || "";
+    $("fNote").value = ex.note || "";
     draft = { sets: deepCloneSets(ex.sets && ex.sets.length ? ex.sets : [blankSet()]) };
   } else {
     $("sheetTitle").textContent = "Add exercise";
     $("deleteExerciseBtn").hidden = true;
     $("fExercise").value = "";
+    $("fNote").value = "";
     draft = { sets: [blankSet()] };
   }
   renderSetsEditor();
@@ -432,13 +452,14 @@ $("sheetSave").addEventListener("click", () => {
   let prHit = false;
   sets.forEach(s => s.steps.forEach(st => { if (isPR(st, name, currentDate)) prHit = true; }));
 
+  const note = $("fNote").value.trim();
   remember("exerciseNames", name);
   const day = getDay(currentDate);
   if (editingId) {
     const ex = day.exercises.find(e => e.id === editingId);
-    ex.name = name; ex.sets = sets;
+    ex.name = name; ex.sets = sets; ex.note = note;
   } else {
-    day.exercises.push({ id: uid(), name, sets });
+    day.exercises.push({ id: uid(), name, sets, note });
   }
   commit(currentDate); closeEditor(); render();
   if (prHit) showToast("🏆 New personal best!", true); else showToast("Saved");

@@ -58,6 +58,13 @@
         </div>
       </section>
 
+      <!-- Day notes card -->
+      <section class="card note-card">
+        <div class="note-head">📝 Notes</div>
+        <textarea id="dayNote" class="note-input" rows="2"
+          placeholder="How did it feel? e.g. left shoulder pain, knee pop, slept poorly…"></textarea>
+      </section>
+
       <!-- Exercises -->
       <section class="exercises-section">
         <div class="section-head">
@@ -119,6 +126,12 @@
           <div id="setsList"></div>
           <button class="add-set-btn" id="addSetBtn">+ Add set</button>
         </div>
+
+        <label class="field">
+          <span>Notes (optional)</span>
+          <textarea id="fNote" class="note-input" rows="2"
+            placeholder="e.g. knee pop on rep 6, form felt off, easy"></textarea>
+        </label>
 
         <button class="delete-btn" id="deleteExerciseBtn" hidden>Delete exercise</button>
       </div>
