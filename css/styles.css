@@ -509,3 +509,35 @@ button { cursor: pointer; border: none; background: none; }
 }
 .sub-btn:active { background: var(--card-2); }
 #syncGistInfo { word-break: break-all; }
+
+/* ---------- Timer mode toggle (Rest / Tempo) ---------- */
+.seg {
+  display: flex; gap: 4px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 12px; padding: 4px; margin-bottom: 4px;
+}
+.seg-btn {
+  flex: 1; padding: 10px; border-radius: 9px; font-weight: 700; font-size: 0.9rem; color: var(--muted);
+}
+.seg-btn.active { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- Tempo trainer ---------- */
+.tempo-ring-wrap { position: relative; width: 240px; max-width: 70vw; aspect-ratio: 1; margin: 6px auto 4px; }
+.tempo-ring { width: 100%; height: 100%; display: block; }
+#tempoProgress { transition: stroke-dashoffset 0.12s linear, stroke 0.2s; }
+.tempo-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; text-align: center;
+}
+.tempo-phase { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase; color: var(--muted); }
+.tempo-count { font-size: 3.4rem; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1; }
+.tempo-rep { font-size: 0.85rem; font-weight: 700; color: var(--muted); }
+
+.tempo-cfg { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0 4px; }
+.tempo-field { display: flex; flex-direction: column; gap: 5px; }
+.tempo-field.wide { grid-column: 1 / -1; }
+.tempo-field > span { font-size: 0.74rem; color: var(--muted); font-weight: 650; }
+.tempo-field input {
+  background: var(--card-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; font-size: 1.15rem; font-weight: 700; text-align: center;
+}
+.tempo-field input:focus { outline: none; border-color: var(--accent); }

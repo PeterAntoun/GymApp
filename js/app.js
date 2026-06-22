@@ -690,8 +690,15 @@ function makeChart(el, series, unit) {
    Rest timer
    ============================================================ */
 const TIMER_PRESETS = [30, 60, 90, 120, 180];
+const TEMPO_KEY = "gymjournal.tempo";
 let timerState = { duration: 90, remaining: 90, running: false, endAt: 0, tick: null };
+let timerMode = "rest";
 let audioCtx = null;
+let tempo = {
+  cfg: { down: 4, holdBottom: 1, up: 4, holdTop: 1, reps: 0 },
+  running: false, phases: [], idx: 0, rep: 0, phaseEndAt: 0, lastSec: 0, frozen: 0, tick: null,
+  phaseLabel: "Ready", shownCount: "—"
+};
 
 $("timerBtn").addEventListener("click", openTimer);
 $("timerClose").addEventListener("click", () => { $("timerBackdrop").hidden = true; updateTimerPill(); });
@@ -700,8 +707,22 @@ $("timerPill").addEventListener("click", openTimer);
 $("timerStart").addEventListener("click", toggleTimer);
 $("timerReset").addEventListener("click", resetTimer);
 $("timerMinus").addEventListener("click", () => { adjustTimer(-15); });
+$("modeRest").addEventListener("click", () => setTimerMode("rest"));
+$("modeTempo").addEventListener("click", () => setTimerMode("tempo"));
+$("tempoStart").addEventListener("click", startTempo);
+$("tempoReset").addEventListener("click", resetTempo);
+
+function setTimerMode(mode) {
+  timerMode = mode;
+  $("modeRest").classList.toggle("active", mode === "rest");
+  $("modeTempo").classList.toggle("active", mode === "tempo");
+  $("restMode").hidden = mode !== "rest";
+  $("tempoMode").hidden = mode !== "tempo";
+  $("timerTitle").textContent = mode === "rest" ? "Rest timer" : "Tempo trainer";
+}
 
 function openTimer() {
+  if (tempo.running) setTimerMode("tempo"); else setTimerMode(timerMode);
   const box = $("timerPresets");
   box.innerHTML = "";
   TIMER_PRESETS.forEach(sec => {
@@ -713,6 +734,7 @@ function openTimer() {
   });
   $("timerBackdrop").hidden = false;
   renderTimer();
+  renderTempo();
 }
 function fmtClock(s) { const m = Math.floor(s / 60); return `${m}:${String(s % 60).padStart(2, "0")}`; }
 function setPreset(sec) {
@@ -764,7 +786,15 @@ function renderTimer() {
 }
 function updateTimerPill() {
   const pill = $("timerPill");
-  const show = timerState.running && $("timerBackdrop").hidden;
+  const sheetClosed = $("timerBackdrop").hidden;
+  // Tempo takes priority in the floating pill when it's running.
+  if (tempo.running && sheetClosed) {
+    pill.hidden = false;
+    pill.textContent = `${tempo.phaseLabel} ${tempo.shownCount}`;
+    pill.classList.remove("warn");
+    return;
+  }
+  const show = timerState.running && sheetClosed;
   pill.hidden = !show;
   if (show) {
     pill.textContent = "⏱ " + fmtClock(timerState.remaining);
@@ -787,6 +817,138 @@ function beep() {
     g.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
     o.start(now); o.stop(now + 0.16);
   });
+}
+/* Single tone — used by the tempo trainer for phase cues and ticks. */
+function tone(freq, dur = 0.12, vol = 0.3) {
+  if (!audioCtx) return;
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = "sine"; o.frequency.value = freq;
+  o.connect(g); g.connect(audioCtx.destination);
+  const t = audioCtx.currentTime;
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+
+/* ============================================================
+   Tempo trainer (TuT metronome)
+   ============================================================ */
+const TEMPO_RING_C = 326.7;                 // 2πr for r=52
+const PHASE_TONE = { down: 523, up: 784, hold: 392 };
+const PHASE_COLOR = { down: "#5b8cff", up: "#8b5cf6", hold: "#fbbf24" };
+const PHASE_EMOJI = { down: "⬇︎", up: "⬆︎", hold: "⏸" };
+
+function clampInt(v) { const n = parseInt(v); return isNaN(n) || n < 0 ? 0 : n; }
+function readTempoCfg() {
+  return {
+    down: clampInt($("tDown").value),
+    holdBottom: clampInt($("tHoldBottom").value),
+    up: clampInt($("tUp").value),
+    holdTop: clampInt($("tHoldTop").value),
+    reps: clampInt($("tReps").value)
+  };
+}
+function buildPhases(cfg) {
+  return [
+    ["Down", cfg.down, "down"],
+    ["Hold", cfg.holdBottom, "hold"],
+    ["Up", cfg.up, "up"],
+    ["Hold", cfg.holdTop, "hold"]
+  ].filter(d => d[1] > 0).map(d => ({ name: d[0], dur: d[1], kind: d[2] }));
+}
+function startTempo() {
+  if (tempo.running) { pauseTempo(); return; }
+  ensureAudio();
+  // Resume if we were paused mid-phase.
+  if (tempo.frozen > 0 && tempo.phases.length) {
+    tempo.running = true;
+    tempo.phaseEndAt = Date.now() + tempo.frozen;
+    tempo.frozen = 0;
+    tempoLoop();
+    return;
+  }
+  const cfg = readTempoCfg();
+  const phases = buildPhases(cfg);
+  if (!phases.length) { showToast("Set some seconds first"); return; }
+  localStorage.setItem(TEMPO_KEY, JSON.stringify(cfg));
+  tempo.cfg = cfg; tempo.phases = phases; tempo.idx = 0; tempo.rep = 0; tempo.running = true;
+  enterTempoPhase(0);
+  tempoLoop();
+}
+function enterTempoPhase(i) {
+  const p = tempo.phases[i];
+  tempo.phaseEndAt = Date.now() + p.dur * 1000;
+  tempo.lastSec = p.dur;
+  tone(PHASE_TONE[p.kind], 0.16, 0.34);   // announce the phase
+}
+function tempoLoop() {
+  clearTimeout(tempo.tick);
+  if (!tempo.running) return;
+  const p = tempo.phases[tempo.idx];
+  const remMs = tempo.phaseEndAt - Date.now();
+  const secLeft = Math.max(0, Math.ceil(remMs / 1000));
+  if (secLeft < tempo.lastSec && secLeft > 0) { tempo.lastSec = secLeft; tone(300, 0.05, 0.16); } // per-second tick
+  renderTempo(secLeft, remMs, p);
+  if (remMs <= 0) { advanceTempo(); return; }
+  tempo.tick = setTimeout(tempoLoop, 80);
+}
+function advanceTempo() {
+  tempo.idx++;
+  if (tempo.idx >= tempo.phases.length) {
+    tempo.idx = 0; tempo.rep++;
+    if (tempo.cfg.reps > 0 && tempo.rep >= tempo.cfg.reps) { finishTempo(); return; }
+  }
+  enterTempoPhase(tempo.idx);
+  tempoLoop();
+}
+function pauseTempo() {
+  tempo.running = false;
+  tempo.frozen = Math.max(0, tempo.phaseEndAt - Date.now());
+  clearTimeout(tempo.tick);
+  renderTempo();
+}
+function resetTempo() {
+  tempo.running = false; tempo.frozen = 0; tempo.idx = 0; tempo.rep = 0; tempo.phases = [];
+  clearTimeout(tempo.tick);
+  tempo.phaseLabel = "Ready"; tempo.shownCount = "—";
+  setTempoRing(1, "#5b8cff");
+  $("tempoPhase").textContent = "Ready"; $("tempoPhase").style.color = "";
+  $("tempoCount").textContent = "—";
+  $("tempoRep").textContent = "";
+  $("tempoStart").textContent = "Start";
+  updateTimerPill();
+}
+function finishTempo() {
+  tempo.running = false; tempo.frozen = 0;
+  clearTimeout(tempo.tick);
+  tone(880, 0.15, 0.3); setTimeout(() => tone(1175, 0.22, 0.3), 170);
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 320]);
+  $("tempoPhase").textContent = "Done"; $("tempoPhase").style.color = "var(--green)";
+  $("tempoCount").textContent = "✓";
+  $("tempoStart").textContent = "Start";
+  setTempoRing(1, "#34d399");
+  updateTimerPill();
+  showToast("✅ Tempo set complete");
+}
+function renderTempo(secLeft, remMs, phase) {
+  $("tempoStart").textContent = tempo.running ? "Pause" : (tempo.frozen > 0 ? "Resume" : "Start");
+  if (tempo.running && phase) {
+    const frac = Math.max(0, Math.min(1, remMs / (phase.dur * 1000)));
+    setTempoRing(frac, PHASE_COLOR[phase.kind]);
+    tempo.phaseLabel = PHASE_EMOJI[phase.kind] + " " + phase.name;
+    tempo.shownCount = String(secLeft);
+    $("tempoPhase").textContent = phase.name.toUpperCase();
+    $("tempoPhase").style.color = PHASE_COLOR[phase.kind];
+    $("tempoCount").textContent = secLeft;
+    $("tempoRep").textContent = tempo.cfg.reps > 0 ? `Rep ${tempo.rep + 1} / ${tempo.cfg.reps}` : `Rep ${tempo.rep + 1}`;
+  }
+  updateTimerPill();
+}
+function setTempoRing(frac, color) {
+  const prog = $("tempoProgress");
+  prog.setAttribute("stroke", color);
+  prog.setAttribute("stroke-dashoffset", String(TEMPO_RING_C * (1 - frac)));
 }
 
 /* ============================================================
@@ -1049,6 +1211,14 @@ function showToast(msg, pr) {
 refreshDatalists();
 render();
 updateSyncUI();
+// Restore last-used tempo settings into the inputs.
+try {
+  const c = JSON.parse(localStorage.getItem(TEMPO_KEY));
+  if (c) {
+    $("tDown").value = c.down; $("tHoldBottom").value = c.holdBottom;
+    $("tUp").value = c.up; $("tHoldTop").value = c.holdTop; $("tReps").value = c.reps;
+  }
+} catch (e) {}
 if (syncEnabled()) syncNow();
 
 if ("serviceWorker" in navigator) {
