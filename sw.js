@@ -1,6 +1,6 @@
 /* Service worker — network-first for the app shell so every launch gets the
    latest code when online, with an offline cache fallback. Bump CACHE on changes. */
-const CACHE = "gymjournal-v9";
+const CACHE = "gymjournal-v10";
 const ASSETS = [
   "./",
   "./index.html",

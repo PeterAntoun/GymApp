@@ -318,18 +318,25 @@ button { cursor: pointer; border: none; background: none; }
 .step-var:focus { outline: none; border-color: var(--accent); }
 .step-del { color: var(--danger); font-size: 1.3rem; padding: 4px; flex: none; }
 
-.step-grid { display: flex; gap: 8px; }
+.step-grid { display: flex; flex-direction: column; gap: 10px; }
+.step-subgrid { display: flex; gap: 8px; }
+.step-subgrid .mini { flex: 1; }
 .mini { flex: 1; display: flex; flex-direction: column; gap: 5px; }
 .mini > span { font-size: 0.64rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
-.reps-control { display: flex; align-items: center; gap: 6px; }
-.reps-control input, .mini-num {
+.reps-control { display: flex; align-items: center; gap: 8px; }
+.reps-control input {
+  flex: 1; min-width: 0; background: var(--bg-2); border: 1px solid var(--line);
+  border-radius: 10px; padding: 14px 8px; font-size: 1.5rem; font-weight: 800; text-align: center;
+  letter-spacing: -0.02em;
+}
+.mini-num {
   width: 100%; background: var(--bg-2); border: 1px solid var(--line);
   border-radius: 10px; padding: 11px 6px; font-size: 1rem; font-weight: 700; text-align: center;
 }
 .reps-control input:focus, .mini-num:focus { outline: none; border-color: var(--accent); }
 .mini-step {
-  width: 40px; height: 42px; flex: none; background: var(--bg-2);
-  border: 1px solid var(--line); border-radius: 10px; font-size: 1.3rem; color: var(--text);
+  width: 52px; height: 52px; flex: none; background: var(--bg-2);
+  border: 1px solid var(--line); border-radius: 12px; font-size: 1.5rem; color: var(--text);
   display: flex; align-items: center; justify-content: center;
 }
 .mini-step:active { background: var(--card-3); }
