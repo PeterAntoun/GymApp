@@ -204,22 +204,67 @@
     </div>
   </div>
 
-  <!-- Rest timer sheet -->
+  <!-- Timer sheet (Rest + Tempo) -->
   <div class="sheet-backdrop" id="timerBackdrop" hidden>
     <div class="sheet" id="timerSheet" role="dialog" aria-modal="true">
       <div class="sheet-handle"></div>
       <div class="sheet-head">
         <button class="sheet-cancel" id="timerClose">Close</button>
-        <h3>Rest timer</h3>
+        <h3 id="timerTitle">Timer</h3>
         <span style="width:48px"></span>
       </div>
-      <div class="sheet-body timer-body">
-        <div class="timer-display" id="timerDisplay">0:00</div>
-        <div class="timer-presets" id="timerPresets"></div>
-        <div class="timer-controls">
-          <button class="timer-ctrl" id="timerMinus">−15s</button>
-          <button class="primary-btn timer-main" id="timerStart">Start</button>
-          <button class="timer-ctrl" id="timerReset">Reset</button>
+      <div class="sheet-body">
+        <div class="seg">
+          <button class="seg-btn active" id="modeRest">Rest</button>
+          <button class="seg-btn" id="modeTempo">Tempo</button>
+        </div>
+
+        <!-- Rest mode -->
+        <div id="restMode" class="timer-body">
+          <div class="timer-display" id="timerDisplay">0:00</div>
+          <div class="timer-presets" id="timerPresets"></div>
+          <div class="timer-controls">
+            <button class="timer-ctrl" id="timerMinus">−15s</button>
+            <button class="primary-btn timer-main" id="timerStart">Start</button>
+            <button class="timer-ctrl" id="timerReset">Reset</button>
+          </div>
+        </div>
+
+        <!-- Tempo mode -->
+        <div id="tempoMode" hidden>
+          <div class="tempo-ring-wrap">
+            <svg class="tempo-ring" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="9"/>
+              <circle id="tempoProgress" cx="60" cy="60" r="52" fill="none" stroke="#5b8cff"
+                      stroke-width="9" stroke-linecap="round"
+                      transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="0"/>
+            </svg>
+            <div class="tempo-center">
+              <div class="tempo-phase" id="tempoPhase">Ready</div>
+              <div class="tempo-count" id="tempoCount">—</div>
+              <div class="tempo-rep" id="tempoRep"></div>
+            </div>
+          </div>
+
+          <div class="tempo-cfg">
+            <label class="tempo-field"><span>⬇︎ Down (s)</span>
+              <input type="number" inputmode="numeric" id="tDown" min="0" value="4" /></label>
+            <label class="tempo-field"><span>⏸ Hold bottom</span>
+              <input type="number" inputmode="numeric" id="tHoldBottom" min="0" value="1" /></label>
+            <label class="tempo-field"><span>⬆︎ Up (s)</span>
+              <input type="number" inputmode="numeric" id="tUp" min="0" value="4" /></label>
+            <label class="tempo-field"><span>⏸ Hold top</span>
+              <input type="number" inputmode="numeric" id="tHoldTop" min="0" value="1" /></label>
+            <label class="tempo-field wide"><span>🎯 Reps (0 = no limit)</span>
+              <input type="number" inputmode="numeric" id="tReps" min="0" value="0" /></label>
+          </div>
+
+          <div class="timer-controls">
+            <button class="primary-btn timer-main" id="tempoStart">Start</button>
+            <button class="timer-ctrl" id="tempoReset">Reset</button>
+          </div>
+          <p class="hint-line">Distinct tones cue each phase (down / hold / up / hold) with a tick
+            each second, and it counts your reps. e.g. 4 / 1 / 4 / 1.</p>
         </div>
       </div>
     </div>

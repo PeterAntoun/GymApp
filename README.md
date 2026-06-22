@@ -61,11 +61,16 @@ Bottom bar → **📈 Trends**:
   reps on a specific variation climb over the weeks.
 - **Personal bests** — best reps and top load per exercise.
 
-## Rest timer
+## Timer: Rest & Tempo
 
-Bottom bar → **⏱ Timer**: presets (0:30–3:00), ±15s, start/pause, and a beep +
-vibrate when rest is up. A floating pill keeps the countdown visible while you
-log your next set.
+Bottom bar → **⏱ Timer**, with two modes:
+
+- **Rest** — presets (0:30–3:00), ±15s, start/pause, and a beep + vibrate when
+  rest is up. A floating pill keeps the countdown visible while you log.
+- **Tempo (TuT metronome)** — set the seconds for each phase of a rep —
+  **Down / Hold bottom / Up / Hold top** (e.g. 4 / 1 / 4 / 1) and an optional
+  rep target. A countdown ring plus distinct tones cue every phase (with a tick
+  each second) and it counts your reps, beeping + vibrating when the set is done.
 
 ## Cloud sync (phone ↔ PC)
 
