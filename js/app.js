@@ -697,8 +697,9 @@ let audioCtx = null;
 let tempo = {
   cfg: { down: 4, holdBottom: 1, up: 4, holdTop: 1, reps: 0 },
   running: false, phases: [], idx: 0, rep: 0, phaseEndAt: 0, lastSec: 0, frozen: 0, tick: null,
-  phaseLabel: "Ready", shownCount: "—"
+  leadIn: false, leadEndAt: 0, phaseLabel: "Ready", shownCount: "—"
 };
+const TEMPO_LEAD_MS = 3000;   // 3s "get ready" countdown before the first rep
 
 $("timerBtn").addEventListener("click", openTimer);
 $("timerClose").addEventListener("click", () => { $("timerBackdrop").hidden = true; updateTimerPill(); });
@@ -860,12 +861,11 @@ function buildPhases(cfg) {
 function startTempo() {
   if (tempo.running) { pauseTempo(); return; }
   ensureAudio();
-  // Resume if we were paused mid-phase.
+  // Resume from a pause (during the lead-in or mid-phase).
   if (tempo.frozen > 0 && tempo.phases.length) {
     tempo.running = true;
-    tempo.phaseEndAt = Date.now() + tempo.frozen;
-    tempo.frozen = 0;
-    tempoLoop();
+    if (tempo.leadIn) { tempo.leadEndAt = Date.now() + tempo.frozen; tempo.frozen = 0; leadLoop(); }
+    else { tempo.phaseEndAt = Date.now() + tempo.frozen; tempo.frozen = 0; tempoLoop(); }
     return;
   }
   const cfg = readTempoCfg();
@@ -873,8 +873,31 @@ function startTempo() {
   if (!phases.length) { showToast("Set some seconds first"); return; }
   localStorage.setItem(TEMPO_KEY, JSON.stringify(cfg));
   tempo.cfg = cfg; tempo.phases = phases; tempo.idx = 0; tempo.rep = 0; tempo.running = true;
-  enterTempoPhase(0);
-  tempoLoop();
+  beginLeadIn();
+}
+/* 3-2-1 get-ready countdown before the first rep. */
+function beginLeadIn() {
+  tempo.leadIn = true;
+  tempo.leadEndAt = Date.now() + TEMPO_LEAD_MS;
+  tempo.lastSec = Math.ceil(TEMPO_LEAD_MS / 1000);
+  tone(440, 0.1, 0.26);
+  leadLoop();
+}
+function leadLoop() {
+  clearTimeout(tempo.tick);
+  if (!tempo.running) return;
+  const remMs = tempo.leadEndAt - Date.now();
+  if (remMs <= 0) { tempo.leadIn = false; tone(784, 0.2, 0.36); enterTempoPhase(0); tempoLoop(); return; }
+  const secLeft = Math.max(1, Math.ceil(remMs / 1000));
+  if (secLeft < tempo.lastSec) { tempo.lastSec = secLeft; tone(440, 0.08, 0.24); }
+  setTempoRing(Math.min(1, remMs / TEMPO_LEAD_MS), "#34d399");
+  tempo.phaseLabel = "Get ready"; tempo.shownCount = String(secLeft);
+  $("tempoPhase").textContent = "GET READY"; $("tempoPhase").style.color = "var(--green)";
+  $("tempoCount").textContent = secLeft;
+  $("tempoRep").textContent = tempo.cfg.reps > 0 ? `0 / ${tempo.cfg.reps}` : "";
+  $("tempoStart").textContent = "Pause";
+  updateTimerPill();
+  tempo.tick = setTimeout(leadLoop, 80);
 }
 function enterTempoPhase(i) {
   const p = tempo.phases[i];
@@ -887,10 +910,10 @@ function tempoLoop() {
   if (!tempo.running) return;
   const p = tempo.phases[tempo.idx];
   const remMs = tempo.phaseEndAt - Date.now();
-  const secLeft = Math.max(0, Math.ceil(remMs / 1000));
-  if (secLeft < tempo.lastSec && secLeft > 0) { tempo.lastSec = secLeft; tone(300, 0.05, 0.16); } // per-second tick
-  renderTempo(secLeft, remMs, p);
   if (remMs <= 0) { advanceTempo(); return; }
+  const secLeft = Math.max(1, Math.ceil(remMs / 1000));
+  if (secLeft < tempo.lastSec) { tempo.lastSec = secLeft; tone(300, 0.05, 0.16); } // per-second tick
+  renderTempo(secLeft, remMs, p);
   tempo.tick = setTimeout(tempoLoop, 80);
 }
 function advanceTempo() {
@@ -904,12 +927,14 @@ function advanceTempo() {
 }
 function pauseTempo() {
   tempo.running = false;
-  tempo.frozen = Math.max(0, tempo.phaseEndAt - Date.now());
+  const end = tempo.leadIn ? tempo.leadEndAt : tempo.phaseEndAt;
+  tempo.frozen = Math.max(0, end - Date.now());
   clearTimeout(tempo.tick);
-  renderTempo();
+  $("tempoStart").textContent = "Resume";
+  updateTimerPill();
 }
 function resetTempo() {
-  tempo.running = false; tempo.frozen = 0; tempo.idx = 0; tempo.rep = 0; tempo.phases = [];
+  tempo.running = false; tempo.frozen = 0; tempo.idx = 0; tempo.rep = 0; tempo.phases = []; tempo.leadIn = false;
   clearTimeout(tempo.tick);
   tempo.phaseLabel = "Ready"; tempo.shownCount = "—";
   setTempoRing(1, "#5b8cff");
