@@ -61,6 +61,9 @@ Bottom bar → **📈 Trends**:
   reps on a specific variation climb over the weeks.
 - **Personal bests** — best reps and top load per exercise.
 
+Tap or drag across any chart to scrub through past sessions — a marker and
+tooltip show the exact **date and value** for each point.
+
 ## Timer: Rest & Tempo
 
 Bottom bar → **⏱ Timer**, with two modes:

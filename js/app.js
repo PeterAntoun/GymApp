@@ -645,9 +645,10 @@ function renderPersonalBests() {
   }).join("") || `<div class="pb-empty">No data yet.</div>`;
 }
 
-/* Dependency-free SVG line chart. */
+/* Dependency-free SVG line chart with tap/drag scrubbing. */
 function makeChart(el, series, unit) {
-  if (!series.length) { el.innerHTML = `<div class="chart-empty">No data yet</div>`; return; }
+  if (!el.classList.contains("chart")) el.classList.add("chart");
+  if (!series.length) { el._cd = null; el.innerHTML = `<div class="chart-empty">No data yet</div>`; return; }
   const W = 320, H = 170, padL = 34, padR = 16, padT = 16, padB = 26;
   const n = series.length;
   const xs = i => n === 1 ? padL + (W - padL - padR) / 2 : padL + i * (W - padL - padR) / (n - 1);
@@ -680,10 +681,68 @@ function makeChart(el, series, unit) {
     <path d="${area}" fill="url(#cg)"/>
     <path d="${line}" fill="none" stroke="url(#cl)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
+    <g class="cmark" opacity="0">
+      <line class="cmark-line" x1="0" y1="${padT}" x2="0" y2="${H - padB}"/>
+      <circle class="cmark-dot" cx="0" cy="0" r="4.5"/>
+    </g>
     <text x="${padL}" y="${H - 8}" text-anchor="start" font-size="9" fill="#8b93a6">${fmtShort(series[0].date)}</text>
     <text x="${W - padR}" y="${H - 8}" text-anchor="end" font-size="9" fill="#8b93a6">${fmtShort(last.date)}</text>
-    <text x="${lastLabelX}" y="${Math.max(ys(last.value) - 9, 12)}" text-anchor="end" font-size="11" font-weight="800" fill="#f4f6fb">${fmtV(last.value)}${unit ? " " + unit : ""}</text>
+    <text class="clast" x="${lastLabelX}" y="${Math.max(ys(last.value) - 9, 12)}" text-anchor="end" font-size="11" font-weight="800" fill="#f4f6fb">${fmtV(last.value)}${unit ? " " + unit : ""}</text>
   </svg>`;
+
+  const tip = document.createElement("div");
+  tip.className = "chart-tip"; tip.style.display = "none";
+  el.appendChild(tip);
+
+  // Stash everything the pointer handler needs.
+  el._cd = { series, unit, W, H, padL, padR, padT, padB, min, max, n };
+  wireChart(el);
+}
+
+function wireChart(el) {
+  if (el._wired) return;
+  el._wired = true;
+  const at = (clientX) => {
+    const cd = el._cd; if (!cd) return;
+    const svg = el.querySelector("svg"); if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const vbX = (clientX - rect.left) / rect.width * cd.W;
+    const step = cd.n > 1 ? (cd.W - cd.padL - cd.padR) / (cd.n - 1) : 1;
+    let i = cd.n > 1 ? Math.round((vbX - cd.padL) / step) : 0;
+    i = Math.max(0, Math.min(cd.n - 1, i));
+    const xsi = cd.n === 1 ? cd.padL + (cd.W - cd.padL - cd.padR) / 2 : cd.padL + i * (cd.W - cd.padL - cd.padR) / (cd.n - 1);
+    const v = cd.series[i].value;
+    const ysi = cd.padT + (1 - (v - cd.min) / (cd.max - cd.min)) * (cd.H - cd.padT - cd.padB);
+    // marker
+    const g = el.querySelector(".cmark");
+    g.setAttribute("opacity", "1");
+    const ln = g.querySelector(".cmark-line");
+    ln.setAttribute("x1", xsi); ln.setAttribute("x2", xsi);
+    const dot = g.querySelector(".cmark-dot");
+    dot.setAttribute("cx", xsi); dot.setAttribute("cy", ysi);
+    el.querySelector(".clast").setAttribute("opacity", "0");
+    // tooltip
+    const tip = el.querySelector(".chart-tip");
+    const fmtV = x => Number.isInteger(x) ? x : x.toFixed(1);
+    tip.innerHTML = `<b>${fmtV(v)}${cd.unit ? " " + cd.unit : ""}</b><span>${fmtTipDate(cd.series[i].date)}</span>`;
+    let leftPx = xsi / cd.W * rect.width;
+    leftPx = Math.max(36, Math.min(rect.width - 36, leftPx));
+    tip.style.left = leftPx + "px";
+    tip.style.top = (ysi / cd.H * rect.height) + "px";
+    tip.style.display = "block";
+  };
+  el.addEventListener("pointerdown", (e) => {
+    el._active = true;
+    try { el.setPointerCapture(e.pointerId); } catch (x) {}
+    at(e.clientX);
+  });
+  el.addEventListener("pointermove", (e) => { if (el._active) at(e.clientX); });
+  const end = () => { el._active = false; };
+  el.addEventListener("pointerup", end);
+  el.addEventListener("pointercancel", end);
+}
+function fmtTipDate(s) {
+  return parseDate(s).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 /* ============================================================
