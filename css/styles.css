@@ -455,9 +455,18 @@ button { cursor: pointer; border: none; background: none; }
 }
 .metric-btn.active { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 
-.chart { width: 100%; }
+.chart { width: 100%; position: relative; touch-action: pan-y; }
 .chart svg { width: 100%; height: auto; display: block; }
 .chart-empty { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 34px 10px; }
+.cmark-line { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 3 3; }
+.cmark-dot { fill: #fff; stroke: #5b8cff; stroke-width: 2.5; }
+.chart-tip {
+  position: absolute; transform: translate(-50%, -120%);
+  background: var(--card-3); border: 1px solid var(--line-strong); color: var(--text);
+  padding: 5px 9px; border-radius: 9px; font-size: 0.78rem; font-weight: 800; white-space: nowrap;
+  pointer-events: none; box-shadow: var(--shadow); z-index: 5; text-align: center; line-height: 1.25;
+}
+.chart-tip span { display: block; font-size: 0.62rem; color: var(--muted); font-weight: 600; }
 
 .pb-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
