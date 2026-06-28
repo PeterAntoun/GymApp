@@ -203,7 +203,10 @@ function renderStatStrip() {
 
 function renderBodyWeight() {
   const day = db.days[currentDate];
-  $("bodyWeight").value = day && day.bodyWeight != null ? day.bodyWeight : "";
+  // Don't overwrite the field while the user is actively typing in it.
+  if (document.activeElement !== $("bodyWeight")) {
+    $("bodyWeight").value = day && day.bodyWeight != null ? day.bodyWeight : "";
+  }
   renderBwHint();
 }
 function renderBwHint() {
@@ -1151,14 +1154,20 @@ function mergeDay(a, b) {
   const nA = a.noteAt || 0, nB = b.noteAt || 0;
   const eA = a.exAt || 0, eB = b.exAt || 0;
   return {
-    bodyWeight: bwB > bwA ? b.bodyWeight : a.bodyWeight,
+    // HARD INVARIANT: a real body weight is never replaced by an empty one,
+    // no matter the timestamps. Two real values: the newer one wins.
+    bodyWeight: pickBodyWeight(a.bodyWeight, bwA, b.bodyWeight, bwB),
     note: nB > nA ? (b.note || "") : (a.note || ""),
     exercises: eB > eA ? (b.exercises || []) : (a.exercises || []),
-    bwAt: Math.max(bwA, bwB),
+    bwAt: a.bodyWeight != null || b.bodyWeight != null ? Math.max(bwA, bwB) : 0,
     noteAt: Math.max(nA, nB),
     exAt: Math.max(eA, eB),
     updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0)
   };
+}
+function pickBodyWeight(av, at, bv, bt) {
+  if (av != null && bv != null) return bt > at ? bv : av;
+  return av != null ? av : bv;   // present value beats null, always
 }
 function unionNames(a = [], b = []) {
   const out = [...a];
@@ -1335,6 +1344,9 @@ function showToast(msg, pr) {
 /* ============================================================
    Boot
    ============================================================ */
+const APP_VERSION = "1.16";
+$("appVersion").textContent = "Gym Journal v" + APP_VERSION;
+console.log("Gym Journal v" + APP_VERSION);
 refreshDatalists();
 render();
 updateSyncUI();
@@ -1349,5 +1361,13 @@ try {
 if (syncEnabled()) syncNow();
 
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  // When a new service worker takes control (new version deployed), reload
+  // once so the freshly-cached code actually runs — fixes "stuck on old version".
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (swReloaded) return; swReloaded = true; location.reload();
+  });
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").then(reg => { reg.update && reg.update(); }).catch(() => {});
+  });
 }
