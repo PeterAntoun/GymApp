@@ -63,10 +63,12 @@ function normalize(data) {
   Object.values(data.days).forEach(day => {
     if (day.updatedAt == null) day.updatedAt = 0;
     // Field-level timestamps so body weight, note and exercises merge
-    // independently (a rest day with only body weight must not be lost).
-    if (day.bwAt == null) day.bwAt = day.updatedAt || 0;
-    if (day.noteAt == null) day.noteAt = day.updatedAt || 0;
-    if (day.exAt == null) day.exAt = day.updatedAt || 0;
+    // independently. CRITICAL: a field that has no value must carry a 0
+    // timestamp, otherwise an empty field (e.g. a day with only exercises
+    // and no weight) could out-rank — and delete — a real value on merge.
+    day.bwAt = (day.bodyWeight != null) ? (day.bwAt || day.updatedAt || 0) : 0;
+    day.noteAt = (day.note && day.note.trim()) ? (day.noteAt || day.updatedAt || 0) : 0;
+    day.exAt = (day.exercises && day.exercises.length) ? (day.exAt || day.updatedAt || 0) : 0;
     (day.exercises || []).forEach(ex => {
       if (!ex.sets) { ex.sets = []; return; }
       const needs = ex.sets.some(s => s && !("steps" in s));
@@ -94,9 +96,11 @@ function getDay(date) {
 function touchDay(date, field) {
   const t = now();
   const d = getDay(date);
-  if (field === "bw" || field === "all") d.bwAt = t;
-  if (field === "note" || field === "all") d.noteAt = t;
-  if (field === "ex" || field === "all") d.exAt = t;
+  // A field only earns a (winning) timestamp when it actually has a value;
+  // an empty field stays at 0 so it can never overwrite a real value.
+  if (field === "bw" || field === "all") d.bwAt = (d.bodyWeight != null) ? t : 0;
+  if (field === "note" || field === "all") d.noteAt = (d.note && d.note.trim()) ? t : 0;
+  if (field === "ex" || field === "all") d.exAt = (d.exercises && d.exercises.length) ? t : 0;
   d.updatedAt = t;
   db.updatedAt = t;
 }
@@ -200,6 +204,10 @@ function renderStatStrip() {
 function renderBodyWeight() {
   const day = db.days[currentDate];
   $("bodyWeight").value = day && day.bodyWeight != null ? day.bodyWeight : "";
+  renderBwHint();
+}
+function renderBwHint() {
+  const day = db.days[currentDate];
   const hint = $("bwHint");
   const prev = Object.keys(db.days).filter(d => d < currentDate && db.days[d].bodyWeight != null).sort().pop();
   if (prev && day && day.bodyWeight != null) {
@@ -277,12 +285,17 @@ function exerciseCard(ex) {
 /* ============================================================
    Body weight + date navigation
    ============================================================ */
-$("bodyWeight").addEventListener("change", (e) => {
+function setBodyWeight(raw) {
   const day = getDay(currentDate);
-  const val = e.target.value.trim();
-  day.bodyWeight = val === "" ? null : parseFloat(val);
-  commit(currentDate, "bw"); renderBodyWeight();
-});
+  const val = String(raw).trim();
+  const num = val === "" ? null : parseFloat(val);
+  day.bodyWeight = (num == null || Number.isNaN(num)) ? null : num;
+  commit(currentDate, "bw");
+  renderBwHint();   // update the hint without clobbering what's being typed
+}
+// Save on every keystroke (input) and on blur (change) — bulletproof.
+$("bodyWeight").addEventListener("input", (e) => setBodyWeight(e.target.value));
+$("bodyWeight").addEventListener("change", (e) => { setBodyWeight(e.target.value); renderBodyWeight(); });
 $("dayNote").addEventListener("input", (e) => {
   // Persist + schedule sync as you type (sync itself is debounced).
   getDay(currentDate).note = e.target.value;
