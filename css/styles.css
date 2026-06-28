@@ -554,3 +554,5 @@ button { cursor: pointer; border: none; background: none; }
 }
 .tempo-field input:focus { outline: none; border-color: var(--accent); }
 .timer-main { flex: 1; }
+
+.app-version { text-align: center; color: var(--muted-2); font-size: 0.72rem; font-weight: 600; margin: 6px 0 2px; }
