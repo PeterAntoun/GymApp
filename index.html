@@ -151,8 +151,26 @@
       <button class="menu-item" id="importBtn">⬆︎ Import backup</button>
       <input type="file" id="importFile" accept="application/json" hidden />
       <button class="menu-item danger" id="clearDayBtn">🗑 Clear this day</button>
+      <button class="menu-item" id="diagBtn">🐞 Diagnostics log</button>
       <button class="menu-item" id="menuClose">Close</button>
       <p class="app-version" id="appVersion"></p>
+    </div>
+  </div>
+
+  <!-- Diagnostics sheet -->
+  <div class="sheet-backdrop" id="diagBackdrop" hidden>
+    <div class="sheet" id="diagSheet" role="dialog" aria-modal="true">
+      <div class="sheet-handle"></div>
+      <div class="sheet-head">
+        <button class="sheet-cancel" id="diagClose">Close</button>
+        <h3>Diagnostics</h3>
+        <button class="sheet-save" id="diagCopy">Copy</button>
+      </div>
+      <div class="sheet-body">
+        <p class="hint-line">Newest first. Reproduce the body-weight bug, then read these lines back.</p>
+        <pre class="diag-text" id="diagText"></pre>
+        <button class="sub-btn" id="diagClear">Clear log</button>
+      </div>
     </div>
   </div>
 

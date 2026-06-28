@@ -295,6 +295,7 @@ function setBodyWeight(raw) {
   day.bodyWeight = (num == null || Number.isNaN(num)) ? null : num;
   commit(currentDate, "bw");
   renderBwHint();   // update the hint without clobbering what's being typed
+  dlog(`setBW [${currentDate}] raw="${raw}" -> ${day.bodyWeight} (bwAt=${day.bwAt})`);
 }
 // Save on every keystroke (input) and on blur (change) — bulletproof.
 $("bodyWeight").addEventListener("input", (e) => setBodyWeight(e.target.value));
@@ -1183,14 +1184,19 @@ async function syncNow(opts = {}) {
     const content = await readGistContent(data);
     let remote = null;
     if (content) { try { remote = JSON.parse(content); normalize(remote); } catch (e) {} }
+    const lbw = (db.days[currentDate] || {}).bodyWeight;
+    const rbw = remote && remote.days[currentDate] ? remote.days[currentDate].bodyWeight : "(none)";
     if (remote) {
       const merged = mergeDB(db, remote);
       db = merged; saveDB(); render();
     }
+    const mbw = (db.days[currentDate] || {}).bodyWeight;
+    dlog(`sync [${currentDate}] local=${lbw} remote=${rbw} -> merged=${mbw}`);
     // push our (possibly merged) state back
     const localStr = JSON.stringify(db);
     if (localStr !== (content || "")) {
       await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: localStr } } }) });
+      dlog(`pushed [${currentDate}] bw=${mbw}`);
     }
     lastSyncAt = Date.now();
     syncAuthError = false;
@@ -1329,6 +1335,26 @@ setInterval(syncOnResume, 25000);
 /* ============================================================
    Utilities
    ============================================================ */
+/* ---------- Diagnostics log (to chase the body-weight bug) ---------- */
+let debugLog = [];
+function dlog(msg) {
+  const t = new Date().toLocaleTimeString();
+  debugLog.unshift(`${t}  ${msg}`);
+  if (debugLog.length > 60) debugLog.pop();
+}
+$("diagBtn").addEventListener("click", () => {
+  $("diagText").textContent = debugLog.length ? debugLog.join("\n") : "No events yet.";
+  $("menuBackdrop").hidden = true; $("diagBackdrop").hidden = false;
+});
+$("diagClose").addEventListener("click", () => { $("diagBackdrop").hidden = true; });
+$("diagBackdrop").addEventListener("click", (e) => { if (e.target === $("diagBackdrop")) $("diagBackdrop").hidden = true; });
+$("diagClear").addEventListener("click", () => { debugLog = []; $("diagText").textContent = "Cleared."; });
+$("diagCopy").addEventListener("click", () => {
+  const text = debugLog.join("\n");
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => showToast("Copied")).catch(() => showToast("Copy failed"));
+  else showToast("Copy not supported");
+});
+
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function escapeAttr(s) { return String(s).replace(/"/g, "&quot;"); }
 function escapeHtml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -1344,12 +1370,13 @@ function showToast(msg, pr) {
 /* ============================================================
    Boot
    ============================================================ */
-const APP_VERSION = "1.16";
+const APP_VERSION = "1.17";
 $("appVersion").textContent = "Gym Journal v" + APP_VERSION;
 console.log("Gym Journal v" + APP_VERSION);
 refreshDatalists();
 render();
 updateSyncUI();
+dlog(`BOOT v${APP_VERSION} — today ${currentDate} bw=${(db.days[currentDate] || {}).bodyWeight}`);
 // Restore last-used tempo settings into the inputs.
 try {
   const c = JSON.parse(localStorage.getItem(TEMPO_KEY));
