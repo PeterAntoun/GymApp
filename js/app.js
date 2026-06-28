@@ -62,6 +62,11 @@ function normalize(data) {
   // migrate old flat exercises → sets/steps
   Object.values(data.days).forEach(day => {
     if (day.updatedAt == null) day.updatedAt = 0;
+    // Field-level timestamps so body weight, note and exercises merge
+    // independently (a rest day with only body weight must not be lost).
+    if (day.bwAt == null) day.bwAt = day.updatedAt || 0;
+    if (day.noteAt == null) day.noteAt = day.updatedAt || 0;
+    if (day.exAt == null) day.exAt = day.updatedAt || 0;
     (day.exercises || []).forEach(ex => {
       if (!ex.sets) { ex.sets = []; return; }
       const needs = ex.sets.some(s => s && !("steps" in s));
@@ -79,16 +84,23 @@ function normalize(data) {
 function saveDB() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); }
 
 function getDay(date) {
-  if (!db.days[date]) db.days[date] = { updatedAt: 0, bodyWeight: null, exercises: [] };
+  if (!db.days[date]) db.days[date] = { updatedAt: 0, bwAt: 0, noteAt: 0, exAt: 0, bodyWeight: null, note: "", exercises: [] };
   return db.days[date];
 }
-/* Mark a day (and the db) changed — drives merge + sync. */
-function touchDay(date) {
+/* Mark a day (and the db) changed — drives merge + sync.
+   `field` is "bw", "note", "ex", or "all"; it stamps that field's own
+   timestamp so independent edits (e.g. body weight on a rest day) survive
+   a merge with a version that changed a different field. */
+function touchDay(date, field) {
   const t = now();
-  getDay(date).updatedAt = t;
+  const d = getDay(date);
+  if (field === "bw" || field === "all") d.bwAt = t;
+  if (field === "note" || field === "all") d.noteAt = t;
+  if (field === "ex" || field === "all") d.exAt = t;
+  d.updatedAt = t;
   db.updatedAt = t;
 }
-function commit(date) { touchDay(date); saveDB(); scheduleSync(); }
+function commit(date, field) { touchDay(date, field); saveDB(); scheduleSync(); }
 
 function remember(listKey, value) {
   if (!value) return;
@@ -269,12 +281,12 @@ $("bodyWeight").addEventListener("change", (e) => {
   const day = getDay(currentDate);
   const val = e.target.value.trim();
   day.bodyWeight = val === "" ? null : parseFloat(val);
-  commit(currentDate); renderBodyWeight();
+  commit(currentDate, "bw"); renderBodyWeight();
 });
 $("dayNote").addEventListener("input", (e) => {
   // Persist + schedule sync as you type (sync itself is debounced).
   getDay(currentDate).note = e.target.value;
-  commit(currentDate);
+  commit(currentDate, "note");
 });
 $("prevDay").addEventListener("click", () => { currentDate = shiftDate(currentDate, -1); render(); });
 $("nextDay").addEventListener("click", () => { currentDate = shiftDate(currentDate, 1); render(); });
@@ -465,7 +477,7 @@ $("sheetSave").addEventListener("click", () => {
   } else {
     day.exercises.push({ id: uid(), name, sets, note });
   }
-  commit(currentDate); closeEditor(); render();
+  commit(currentDate, "ex"); closeEditor(); render();
   if (prHit) showToast("🏆 New personal best!", true); else showToast("Saved");
 });
 
@@ -473,7 +485,7 @@ $("deleteExerciseBtn").addEventListener("click", () => {
   if (!editingId) return;
   const day = getDay(currentDate);
   day.exercises = day.exercises.filter(e => e.id !== editingId);
-  commit(currentDate); closeEditor(); render(); showToast("Deleted");
+  commit(currentDate, "ex"); closeEditor(); render(); showToast("Deleted");
 });
 $("addExerciseBtn").addEventListener("click", () => openEditor(null));
 
@@ -488,7 +500,7 @@ $("copyPrevBtn").addEventListener("click", () => {
   db.days[src].exercises.forEach(ex => {
     day.exercises.push({ id: uid(), name: ex.name, sets: deepCloneSets(ex.sets) });
   });
-  commit(currentDate); render(); showToast(`Copied from ${formatDateMain(src)}`);
+  commit(currentDate, "ex"); render(); showToast(`Copied from ${formatDateMain(src)}`);
 });
 
 /* ============================================================
@@ -528,8 +540,8 @@ $("importFile").addEventListener("change", (e) => {
 $("clearDayBtn").addEventListener("click", () => {
   if (!confirm(`Clear everything logged for ${formatDateMain(currentDate)}?`)) return;
   const day = getDay(currentDate);
-  day.exercises = []; day.bodyWeight = null;   // soft clear (keeps it sync-safe)
-  commit(currentDate); render(); $("menuBackdrop").hidden = true; showToast("Day cleared");
+  day.exercises = []; day.bodyWeight = null; day.note = "";   // soft clear (keeps it sync-safe)
+  commit(currentDate, "all"); render(); $("menuBackdrop").hidden = true; showToast("Day cleared");
 });
 
 /* ============================================================
@@ -1113,9 +1125,27 @@ function mergeDB(a, b) {
     const da = a.days[k], dbb = b.days[k];
     if (!da) out.days[k] = dbb;
     else if (!dbb) out.days[k] = da;
-    else out.days[k] = (dbb.updatedAt || 0) > (da.updatedAt || 0) ? dbb : da;
+    else out.days[k] = mergeDay(da, dbb);
   });
   return out;
+}
+/* Merge two versions of the same day field-by-field, each field by its own
+   timestamp. This keeps a rest day's body weight even if the other version
+   only changed exercises (and vice-versa), while still honouring an explicit
+   clear (which stamps every field). Ties keep `a` (local). */
+function mergeDay(a, b) {
+  const bwA = a.bwAt || 0, bwB = b.bwAt || 0;
+  const nA = a.noteAt || 0, nB = b.noteAt || 0;
+  const eA = a.exAt || 0, eB = b.exAt || 0;
+  return {
+    bodyWeight: bwB > bwA ? b.bodyWeight : a.bodyWeight,
+    note: nB > nA ? (b.note || "") : (a.note || ""),
+    exercises: eB > eA ? (b.exercises || []) : (a.exercises || []),
+    bwAt: Math.max(bwA, bwB),
+    noteAt: Math.max(nA, nB),
+    exAt: Math.max(eA, eB),
+    updatedAt: Math.max(a.updatedAt || 0, b.updatedAt || 0)
+  };
 }
 function unionNames(a = [], b = []) {
   const out = [...a];
