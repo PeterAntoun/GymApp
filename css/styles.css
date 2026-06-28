@@ -556,3 +556,10 @@ button { cursor: pointer; border: none; background: none; }
 .timer-main { flex: 1; }
 
 .app-version { text-align: center; color: var(--muted-2); font-size: 0.72rem; font-weight: 600; margin: 6px 0 2px; }
+
+.diag-text {
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px;
+  padding: 12px; font-size: 0.72rem; line-height: 1.5; color: var(--text);
+  white-space: pre-wrap; word-break: break-word; max-height: 50vh; overflow-y: auto;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
