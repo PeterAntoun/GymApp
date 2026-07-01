@@ -1,6 +1,6 @@
 /* Service worker — network-first for the app shell so every launch gets the
    latest code when online, with an offline cache fallback. Bump CACHE on changes. */
-const CACHE = "gymjournal-v17";
+const CACHE = "gymjournal-v18";
 const ASSETS = [
   "./",
   "./index.html",
@@ -32,17 +32,28 @@ self.addEventListener("fetch", (event) => {
   // Never intercept cross-origin requests (e.g. the GitHub sync API).
   if (url.origin !== location.origin) return;
 
-  // Network-first: always try the network so updates land immediately;
-  // fall back to cache when offline.
-  event.respondWith(
-    fetch(event.request)
-      .then((resp) => {
-        if (resp.ok) {
-          const clone = resp.clone();
-          caches.open(CACHE).then((c) => c.put(event.request, clone));
-        }
-        return resp;
-      })
-      .catch(() => caches.match(event.request).then((c) => c || caches.match("./index.html")))
-  );
+  // Network-first with a 4s cap: updates land immediately on a good
+  // connection, but a slow/hung network falls back to cache instead of
+  // making the app hang at launch. Offline falls back to cache too.
+  event.respondWith((async () => {
+    try {
+      const resp = await Promise.race([
+        fetch(event.request).then((r) => {
+          if (r.ok) {
+            const clone = r.clone();
+            caches.open(CACHE).then((c) => c.put(event.request, clone));
+          }
+          return r;
+        }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("sw-timeout")), 4000))
+      ]);
+      return resp;
+    } catch (e) {
+      const cached = await caches.match(event.request);
+      if (cached) return cached;
+      // No cache and network slow: give the network one last real chance.
+      try { return await fetch(event.request); }
+      catch (e2) { return caches.match("./index.html"); }
+    }
+  })());
 });
