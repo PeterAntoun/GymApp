@@ -159,6 +159,22 @@ function isPR(step, name, date) {
   return (b.reps > 0 && (step.reps || 0) > b.reps) ||
          (b.weight > 0 && (step.weight || 0) > b.weight);
 }
+/* One pass over history building best reps/weight per (exercise|variation)
+   before `date` — so rendering N pills doesn't rescan all days N times. */
+function buildPRIndex(date) {
+  const map = new Map();
+  Object.keys(db.days).forEach(d => {
+    if (d >= date) return;
+    (db.days[d].exercises || []).forEach(e => e.sets.forEach(s => s.steps.forEach(st => {
+      const k = e.name + "|" + (st.variation || "");
+      let cur = map.get(k);
+      if (!cur) { cur = { reps: 0, weight: 0 }; map.set(k, cur); }
+      if ((st.reps || 0) > cur.reps) cur.reps = st.reps || 0;
+      if ((st.weight || 0) > cur.weight) cur.weight = st.weight || 0;
+    })));
+  });
+  return map;
+}
 
 /* ============================================================
    Rendering — main screen
@@ -174,6 +190,8 @@ function render() {
 }
 
 function renderDayNote() {
+  // Don't overwrite the textarea (and jump the cursor) while the user is typing.
+  if (document.activeElement === $("dayNote")) return;
   const day = db.days[currentDate];
   $("dayNote").value = day && day.note ? day.note : "";
 }
@@ -225,10 +243,11 @@ function renderExercises() {
   list.innerHTML = "";
   $("emptyState").style.display = exercises.length ? "none" : "block";
   $("exerciseCount").textContent = exercises.length ? `· ${exercises.length}` : "";
-  exercises.forEach(ex => list.appendChild(exerciseCard(ex)));
+  const prIdx = exercises.length ? buildPRIndex(currentDate) : null;
+  exercises.forEach(ex => list.appendChild(exerciseCard(ex, prIdx)));
 }
 
-function exerciseCard(ex) {
+function exerciseCard(ex, prIdx) {
   const card = document.createElement("div");
   card.className = "exercise-card";
   card.addEventListener("click", () => openEditor(ex.id));
@@ -251,7 +270,9 @@ function exerciseCard(ex) {
     steps.className = "set-steps";
     (set.steps || []).forEach(st => {
       total += Number(st.reps) || 0;
-      const pr = isPR(st, ex.name, currentDate);
+      const b = (prIdx && prIdx.get(ex.name + "|" + (st.variation || ""))) || { reps: 0, weight: 0 };
+      const pr = (b.reps > 0 && (st.reps || 0) > b.reps) ||
+                 (b.weight > 0 && (st.weight || 0) > b.weight);
       if (pr) prCount++;
       const pill = document.createElement("div");
       pill.className = "step-pill" + (pr ? " pr" : "");
@@ -288,18 +309,41 @@ function exerciseCard(ex) {
 /* ============================================================
    Body weight + date navigation
    ============================================================ */
-function setBodyWeight(raw) {
-  const day = getDay(currentDate);
-  const val = String(raw).trim();
-  const num = val === "" ? null : parseFloat(val);
-  day.bodyWeight = (num == null || Number.isNaN(num)) ? null : num;
-  commit(currentDate, "bw");
-  renderBwHint();   // update the hint without clobbering what's being typed
-  dlog(`setBW [${currentDate}] raw="${raw}" -> ${day.bodyWeight} (bwAt=${day.bwAt})`);
+/* Parse a weight the user typed. Returns:
+   - a number for a valid value ("," accepted as decimal separator)
+   - null for an empty field (explicit clear)
+   - undefined for a partial/invalid state (e.g. "75." mid-typing) — ignore it */
+function parseWeight(raw) {
+  const val = String(raw).trim().replace(",", ".");
+  if (val === "") return null;
+  const num = parseFloat(val);
+  return Number.isFinite(num) ? num : undefined;
 }
-// Save on every keystroke (input) and on blur (change) — bulletproof.
-$("bodyWeight").addEventListener("input", (e) => setBodyWeight(e.target.value));
-$("bodyWeight").addEventListener("change", (e) => { setBodyWeight(e.target.value); renderBodyWeight(); });
+// While typing: save every valid value, but NEVER clear from a transient
+// empty/invalid state — iOS number fields report "" mid-edit, which used to
+// delete the saved weight.
+$("bodyWeight").addEventListener("input", (e) => {
+  const num = parseWeight(e.target.value);
+  if (num === undefined || num === null) return;
+  const day = getDay(currentDate);
+  if (day.bodyWeight === num) return;
+  day.bodyWeight = num;
+  commit(currentDate, "bw");
+  renderBwHint();
+  dlog(`setBW input [${currentDate}] raw="${e.target.value}" -> ${num}`);
+});
+// On blur: an empty field is an explicit clear; an invalid one keeps the last good value.
+$("bodyWeight").addEventListener("change", (e) => {
+  const num = parseWeight(e.target.value);
+  const day = getDay(currentDate);
+  const next = (num === undefined) ? day.bodyWeight : num;
+  if (day.bodyWeight !== next) {
+    day.bodyWeight = next;
+    commit(currentDate, "bw");
+    dlog(`setBW change [${currentDate}] raw="${e.target.value}" -> ${next}`);
+  }
+  renderBodyWeight();
+});
 $("dayNote").addEventListener("input", (e) => {
   // Persist + schedule sync as you type (sync itself is debounced).
   getDay(currentDate).note = e.target.value;
@@ -332,6 +376,8 @@ function openEditor(id) {
   refreshDatalists();
   if (id) {
     const ex = getDay(currentDate).exercises.find(e => e.id === id);
+    // A sync may have replaced this day's exercises since the card was drawn.
+    if (!ex) { editingId = null; render(); showToast("That entry was updated — tap it again"); return; }
     $("sheetTitle").textContent = "Edit exercise";
     $("deleteExerciseBtn").hidden = false;
     $("fExercise").value = ex.name || "";
@@ -432,7 +478,10 @@ function stepRow(set, step, ki) {
   const sub = document.createElement("div");
   sub.className = "step-subgrid";
   sub.appendChild(miniNum("TuT (s)", step.tut, "numeric", "1", v => { step.tut = v === "" ? null : (parseInt(v) || 0); }));
-  sub.appendChild(miniNum("Added kg", step.weight, "decimal", "0.5", v => { step.weight = v === "" ? null : (parseFloat(v) || 0); }));
+  sub.appendChild(miniNum("Added kg", step.weight, "decimal", "0.5", v => {
+    const n = parseFloat(String(v).replace(",", "."));
+    step.weight = v === "" ? null : (Number.isFinite(n) ? n : null);
+  }));
   grid.appendChild(sub);
   row.appendChild(grid);
   return row;
@@ -490,7 +539,9 @@ $("sheetSave").addEventListener("click", () => {
   const day = getDay(currentDate);
   if (editingId) {
     const ex = day.exercises.find(e => e.id === editingId);
-    ex.name = name; ex.sets = sets; ex.note = note;
+    // If a sync replaced the array while the sheet was open, don't lose the edit.
+    if (ex) { ex.name = name; ex.sets = sets; ex.note = note; }
+    else day.exercises.push({ id: uid(), name, sets, note });
   } else {
     day.exercises.push({ id: uid(), name, sets, note });
   }
@@ -692,14 +743,17 @@ function makeChart(el, series, unit) {
   const fmtV = v => Number.isInteger(v) ? v : v.toFixed(1);
   const last = series[n - 1];
   const lastLabelX = Math.min(xs(n - 1), W - padR - 4);
+  // Gradient ids must be unique per chart — duplicate SVG ids across the two
+  // charts made one chart's paint depend on the other's presence.
+  const gid = el.id || "chart";
   el.innerHTML = `
   <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" role="img">
     <defs>
-      <linearGradient id="cg" x1="0" y1="0" x2="0" y2="1">
+      <linearGradient id="${gid}-cg" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="rgba(91,140,255,0.28)"/>
         <stop offset="100%" stop-color="rgba(91,140,255,0)"/>
       </linearGradient>
-      <linearGradient id="cl" x1="0" y1="0" x2="1" y2="0">
+      <linearGradient id="${gid}-cl" x1="0" y1="0" x2="1" y2="0">
         <stop offset="0%" stop-color="#5b8cff"/><stop offset="100%" stop-color="#8b5cf6"/>
       </linearGradient>
     </defs>
@@ -707,8 +761,8 @@ function makeChart(el, series, unit) {
     <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#2c3340" stroke-width="1"/>
     <text x="${padL - 5}" y="${ys(max) + 4}" text-anchor="end" font-size="9" fill="#8b93a6">${fmtV(max)}</text>
     <text x="${padL - 5}" y="${ys(min) + 4}" text-anchor="end" font-size="9" fill="#8b93a6">${fmtV(min)}</text>
-    <path d="${area}" fill="url(#cg)"/>
-    <path d="${line}" fill="none" stroke="url(#cl)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
+    <path d="${area}" fill="url(#${gid}-cg)"/>
+    <path d="${line}" fill="none" stroke="url(#${gid}-cl)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/>
     ${dots}
     <g class="cmark" opacity="0">
       <line class="cmark-line" x1="0" y1="${padT}" x2="0" y2="${H - padB}"/>
@@ -1077,11 +1131,21 @@ function ghHeaders() {
   return { "Authorization": "Bearer " + syncToken, "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
 }
 async function gh(path, opts = {}) {
-  const res = await fetch("https://api.github.com" + path, {
-    ...opts,
-    cache: "no-store",   // never serve a stale Gist from the browser HTTP cache
-    headers: { ...ghHeaders(), ...(opts.headers || {}) }
-  });
+  // 20s timeout: iOS PWAs resume with hung fetches, which used to leave
+  // `syncing` stuck true and silently kill all future syncs.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res;
+  try {
+    res = await fetch("https://api.github.com" + path, {
+      ...opts,
+      cache: "no-store",   // never serve a stale Gist from the browser HTTP cache
+      signal: ctrl.signal,
+      headers: { ...ghHeaders(), ...(opts.headers || {}) }
+    });
+  } catch (e) {
+    throw new Error(e.name === "AbortError" ? "Network timeout" : (e.message || "Network error"));
+  } finally { clearTimeout(timer); }
   if (!res.ok) {
     let detail = "";
     try { const j = await res.json(); if (j && j.message) detail = j.message; } catch (e) {}
@@ -1101,8 +1165,13 @@ async function readGistContent(data) {
   const f = data.files && data.files[GIST_FILE];
   if (!f) return "";
   if (f.truncated && f.raw_url) {
-    const r = await fetch(f.raw_url, { cache: "no-store" });
-    return r.ok ? r.text() : "";
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
+    try {
+      const r = await fetch(f.raw_url, { cache: "no-store", signal: ctrl.signal });
+      return r.ok ? r.text() : "";
+    } catch (e) { return ""; }
+    finally { clearTimeout(timer); }
   }
   return f.content || "";
 }
@@ -1186,14 +1255,20 @@ async function syncNow(opts = {}) {
     if (content) { try { remote = JSON.parse(content); normalize(remote); } catch (e) {} }
     const lbw = (db.days[currentDate] || {}).bodyWeight;
     const rbw = remote && remote.days[currentDate] ? remote.days[currentDate].bodyWeight : "(none)";
+    const before = JSON.stringify(db);
+    let localStr = before;
     if (remote) {
       const merged = mergeDB(db, remote);
-      db = merged; saveDB(); render();
+      localStr = JSON.stringify(merged);
+      db = merged;
+      // Only persist + rebuild the UI when the merge actually changed
+      // something — otherwise the 25s poll would redraw (and scroll-jump)
+      // the whole app for nothing.
+      if (localStr !== before) { saveDB(); render(); }
     }
     const mbw = (db.days[currentDate] || {}).bodyWeight;
-    dlog(`sync [${currentDate}] local=${lbw} remote=${rbw} -> merged=${mbw}`);
+    dlog(`sync [${currentDate}] local=${lbw} remote=${rbw} -> merged=${mbw}${localStr !== before ? " (applied)" : " (no change)"}`);
     // push our (possibly merged) state back
-    const localStr = JSON.stringify(db);
     if (localStr !== (content || "")) {
       await gh("/gists/" + gistId, { method: "PATCH", body: JSON.stringify({ files: { [GIST_FILE]: { content: localStr } } }) });
       dlog(`pushed [${currentDate}] bw=${mbw}`);
@@ -1370,7 +1445,7 @@ function showToast(msg, pr) {
 /* ============================================================
    Boot
    ============================================================ */
-const APP_VERSION = "1.17";
+const APP_VERSION = "1.18";
 $("appVersion").textContent = "Gym Journal v" + APP_VERSION;
 console.log("Gym Journal v" + APP_VERSION);
 refreshDatalists();

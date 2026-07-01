@@ -52,7 +52,9 @@
             <span class="bw-hint" id="bwHint"></span>
           </div>
           <div class="bw-input-wrap">
-            <input type="number" inputmode="decimal" step="0.1" id="bodyWeight" placeholder="—" />
+            <!-- type=text + inputmode=decimal: iOS number inputs report "" for
+                 partially-invalid values, which used to wipe the saved weight -->
+            <input type="text" inputmode="decimal" autocomplete="off" id="bodyWeight" placeholder="—" />
             <span class="unit">kg</span>
           </div>
         </div>
